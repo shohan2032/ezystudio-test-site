@@ -1,66 +1,323 @@
 ---
 /**
- * Home: sections from `src/content/site.ts`, and the three latest posts from
- * `src/content/blog/`. Fully static: no JavaScript of its own.
+ * Home: a big hero photo, a strip of recent work, what we do, this week's
+ * openings, reviews and a closing "Book now" band. Words in
+ * `src/content/site.ts`, photos in `src/lib/photos.ts`. No JavaScript.
  */
-import PostCard from '../components/PostCard.astro';
-import {HOME} from '../content/site';
-import Base from '../layouts/Base.astro';
-import {publishedPosts} from '../lib/posts';
+import {Picture} from 'astro:assets';
 
-const latest = (await publishedPosts()).slice(0, 3);
+import {BOOK, HOME, OPENINGS, REVIEWS, STYLISTS} from '../content/site';
+import Base from '../layouts/Base.astro';
+import {GALLERY, PHOTOS} from '../lib/photos';
+
+const stylist = (id: string) => STYLISTS.find(s => s.id === id);
+const strip = GALLERY.filter(p => !p.tall).slice(0, 4);
 ---
 
 <Base>
-  <section class="hero">
-    <div class="wrap center">
-      <p class="eyebrow">{HOME.hero.eyebrow}</p>
-      <h1>{HOME.hero.title}</h1>
-      <p class="lede">{HOME.hero.body}</p>
-      <div class="actions">
-        <a class="button" href={HOME.hero.primary.href}>{HOME.hero.primary.label}</a>
-        <a class="button ghost" href={HOME.hero.secondary.href}>{HOME.hero.secondary.label}</a>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <p class="eyebrow">{HOME.hero.eyebrow}</p>
+        <h1 id="hero-title" class="hero-title">{HOME.hero.title}</h1>
+        <p class="lead">{HOME.hero.body}</p>
+        <div class="actions">
+          <a class="btn btn-primary btn-lg" href={BOOK.href}>{BOOK.label}</a>
+          <a class="btn btn-secondary btn-lg" href="/services/">See services & prices</a>
+        </div>
+      </div>
+      <div class="hero-image frame">
+        <Picture
+          src={PHOTOS.hero.src}
+          alt={PHOTOS.hero.alt}
+          widths={[480, 800, 1200, 1600]}
+          sizes="(min-width: 1240px) 560px, (min-width: 1000px) 45vw, calc(100vw - 32px)"
+          formats={['avif', 'webp']}
+          loading="eager"
+          fetchpriority="high"
+        />
       </div>
     </div>
   </section>
 
-  <section class="wrap section" aria-labelledby="features-title">
-    <h2 id="features-title" class="center">{HOME.features.title}</h2>
-    <div class="grid grid-3">
-      {
-        HOME.features.items.map(feature => (
-          <div class="card">
-            <h3>{feature.title}</h3>
-            <p class="muted">{feature.body}</p>
-          </div>
-        ))
-      }
+  <section class="section work" aria-labelledby="work-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="work-title">Recent work from the chair</h2>
+        <a class="more" href="/gallery/">See the full gallery →</a>
+      </div>
+      <ul class="work-grid" role="list">
+        {
+          strip.map(photo => (
+            <li>
+              <figure>
+                <div class="frame work-frame">
+                  <Picture src={photo.src} alt={photo.alt} widths={[320, 640, 900]} sizes="(min-width: 1240px) 290px, (min-width: 700px) 45vw, calc(100vw - 32px)" formats={['avif', 'webp']} />
+                </div>
+                <figcaption class="small muted">{photo.caption}</figcaption>
+              </figure>
+            </li>
+          ))
+        }
+      </ul>
     </div>
   </section>
 
-  {
-    latest.length > 0 && (
-      <section class="wrap section" aria-labelledby="latest-title">
-        <div class="section-head">
-          <h2 id="latest-title">Latest from the blog</h2>
-          <a href="/blog/">All posts →</a>
-        </div>
-        <div class="grid grid-3">
-          {latest.map(post => (
-            <PostCard post={post} />
-          ))}
-        </div>
-      </section>
-    )
-  }
+  <section class="section band" aria-labelledby="what-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="what-title">{HOME.intro.title}</h2>
+        <a class="more" href="/services/">Full price list →</a>
+      </div>
+      <div class="cols">
+        {
+          HOME.intro.items.map(item => (
+            <div class="ruled">
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+              <p class="from">{item.from}</p>
+              <a class="more" href={item.href}>
+                {item.title} prices <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
 
-  <section class="wrap section">
-    <div class="card cta">
+  <section class="section" aria-labelledby="openings-title">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="openings-title">This week’s openings</h2>
+          <p class="muted openings-updated">{OPENINGS.updated}. Times go quickly; tap one to request it.</p>
+        </div>
+        <a class="more" href={BOOK.href}>Pick another time →</a>
+      </div>
+      <ul class="openings" role="list">
+        {
+          OPENINGS.items.map(slot => {
+            const who = stylist(slot.stylist);
+            return (
+              <li>
+                <a class="opening" href={`${BOOK.href}?stylist=${slot.stylist}&when=${encodeURIComponent(`${slot.day}, ${slot.time}`)}`}>
+                  <span class="opening-when">
+                    <span class="opening-day">{slot.day}</span>
+                    <span class="opening-time">{slot.time}</span>
+                  </span>
+                  <span class="opening-who">
+                    with {who?.name.split(' ')[0]}
+                    <span class="small muted">{slot.note}</span>
+                  </span>
+                  <span class="badge">Request</span>
+                </a>
+              </li>
+            );
+          })
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section band" aria-labelledby="reviews-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="reviews-title">What clients say</h2>
+      </div>
+      <div class="cols">
+        {
+          REVIEWS.map(review => (
+            <figure class="review ruled">
+              <blockquote>
+                <p>“{review.quote}”</p>
+              </blockquote>
+              <figcaption>
+                <span class="avatar" aria-hidden="true">
+                  {review.name.charAt(0)}
+                </span>
+                <span>
+                  <strong>{review.name}</strong>
+                  <span class="small muted">{review.detail}</span>
+                </span>
+                {review.sample && <span class="badge badge-grey">Sample review</span>}
+              </figcaption>
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section dark cta-band" aria-labelledby="cta-title">
+    <div class="wrap">
       <div>
-        <h2>{HOME.cta.title}</h2>
-        <p class="muted">{HOME.cta.body}</p>
+        <h2 id="cta-title">{HOME.cta.title}</h2>
+        <p class="lead">{HOME.cta.body}</p>
       </div>
-      <a class="button" href="/contact/">Contact us</a>
+      <div class="actions">
+        <a class="btn btn-on-dark btn-lg" href={BOOK.href}>{BOOK.label}</a>
+        <a class="btn btn-outline-dark btn-lg" href="/visit/">Find the studio</a>
+      </div>
     </div>
   </section>
 </Base>
+
+<style>
+  .hero {
+    padding-block: 48px var(--section);
+  }
+
+  .hero-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 48px 64px;
+  }
+
+  .hero-text {
+    flex: 1 1 520px;
+  }
+
+  .hero-text .lead {
+    margin-top: 20px;
+  }
+
+  .hero-image {
+    flex: 1 1 400px;
+    aspect-ratio: 4 / 5;
+    max-height: 640px;
+  }
+
+  @media (min-width: 768px) {
+    .hero {
+      padding-top: 80px;
+    }
+  }
+
+  .work-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 32px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .work-grid figure {
+    margin: 0;
+  }
+
+  .work-frame {
+    aspect-ratio: 4 / 5;
+    box-shadow: none;
+  }
+
+  .work-grid figcaption {
+    margin-top: 12px;
+  }
+
+  .from {
+    margin: 0 0 12px;
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .openings-updated {
+    margin: 12px 0 0;
+  }
+
+  .openings {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .opening {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--ink-body);
+    text-decoration: none;
+  }
+
+  .opening:hover {
+    color: var(--ink-body);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .opening-when {
+    display: grid;
+    min-width: 92px;
+  }
+
+  .opening-day {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+
+  .opening-time {
+    color: var(--ink);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+  }
+
+  .opening-who {
+    display: grid;
+    flex: 1;
+    color: var(--ink-label);
+    font-weight: 600;
+  }
+
+  .opening-who .small {
+    font-weight: 400;
+  }
+
+  .review {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+  }
+
+  .review blockquote {
+    flex: 1;
+    margin: 0 0 24px;
+    color: var(--ink);
+    font-size: 19px;
+    line-height: 1.5;
+  }
+
+  .review figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .review figcaption > span:nth-child(2) {
+    display: grid;
+    flex: 1;
+    color: var(--ink);
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary-tint);
+    color: var(--primary-strong);
+    font-weight: 600;
+  }
+</style>

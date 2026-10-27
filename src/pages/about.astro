@@ -1,23 +1,94 @@
 ---
+/** Our story: words from `ABOUT` in `src/content/site.ts`. */
+import {Picture} from 'astro:assets';
+
+import {ABOUT, BOOK} from '../content/site';
 import Base from '../layouts/Base.astro';
-import {ABOUT} from '../content/site';
+import {PHOTOS} from '../lib/photos';
 ---
 
-<Base title={ABOUT.title} description={ABOUT.lede}>
-  <article class="wrap narrow section">
+<Base title={ABOUT.title} description="How Juniper Hair Studio began, how we work and what we use: a small, calm salon on Alberta Street in Portland.">
+  <section class="wrap page-head">
     <h1>{ABOUT.title}</h1>
-    <p class="lede">{ABOUT.lede}</p>
-    {
-      ABOUT.sections.map(section => (
-        <section class="prose-section">
-          <h2>{section.heading}</h2>
-          <p>{section.body}</p>
-        </section>
-      ))
-    }
-    <div class="actions">
-      <a class="button" href="/contact/">Get in touch</a>
-      <a class="button ghost" href="/blog/">Read the blog</a>
+    <p class="lead">{ABOUT.lede}</p>
+  </section>
+
+  <div class="wrap">
+    <div class="frame story-photo">
+      <Picture src={PHOTOS.team.src} alt={PHOTOS.team.alt} widths={[640, 1000, 1600]} sizes="(min-width: 1240px) 1240px, calc(100vw - 32px)" formats={['avif', 'webp']} loading="eager" fetchpriority="high" />
     </div>
-  </article>
+  </div>
+
+  <section class="section" aria-label="The story">
+    <div class="wrap cols">
+      {
+        ABOUT.sections.map(section => (
+          <div class="ruled">
+            <h2 class="story-heading">{section.heading}</h2>
+            <p>{section.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="section band" aria-labelledby="studio-title">
+    <div class="wrap studio">
+      <div>
+        <h2 id="studio-title">Four chairs, big windows</h2>
+        <p class="lead">We kept the studio small on purpose. It means quieter afternoons, unhurried appointments and a stylist who remembers how you like your fringe.</p>
+        <div class="actions">
+          <a class="btn btn-primary btn-lg" href="/stylists/">Meet the stylists</a>
+          <a class="btn btn-secondary btn-lg" href="/visit/">Visit us</a>
+        </div>
+      </div>
+      <div class="frame studio-photo">
+        <Picture src={PHOTOS.interiorChairs.src} alt={PHOTOS.interiorChairs.alt} widths={[480, 800, 1200]} sizes="(min-width: 1000px) 560px, calc(100vw - 32px)" formats={['avif', 'webp']} />
+      </div>
+    </div>
+  </section>
+
+  <section class="section dark cta-band" aria-labelledby="cta-title">
+    <div class="wrap">
+      <div>
+        <h2 id="cta-title">Come and sit with us</h2>
+        <p class="lead">Your first visit starts with a proper chat and a cup of tea.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-on-dark btn-lg" href={BOOK.href}>{BOOK.label}</a>
+        <a class="btn btn-outline-dark btn-lg" href="/services/">See services & prices</a>
+      </div>
+    </div>
+  </section>
 </Base>
+
+<style>
+  .story-photo {
+    aspect-ratio: 16 / 9;
+  }
+
+  .story-heading {
+    font-size: 22px;
+    letter-spacing: -0.025em;
+  }
+
+  .studio {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 48px 64px;
+  }
+
+  .studio > div:first-child {
+    flex: 1 1 440px;
+  }
+
+  .studio .lead {
+    margin-top: 20px;
+  }
+
+  .studio-photo {
+    flex: 1 1 400px;
+    aspect-ratio: 3 / 2;
+  }
+</style>

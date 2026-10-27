@@ -1,0 +1,429 @@
+---
+/**
+ * Book: service → stylist → time → your details → deposit terms. A static
+ * site cannot hold a diary, take a card or send texts, so the request goes to
+ * the salon by email (src/scripts/mail-form.ts) and the front desk confirms by
+ * text, takes the deposit and sends the reminder. Links can preselect a
+ * choice: `/book/?service=curly-cut`, `?stylist=lena`, `?when=Thu 29 Oct, 10:00 am`.
+ */
+import {BOOK_PAGE, CONTACT, POLICY, SERVICES, STYLISTS} from '../content/site';
+import Base from '../layouts/Base.astro';
+
+const stylistOptions = [{id: 'any', label: 'First available', note: 'We match you with the right person'}, ...STYLISTS.map(s => ({id: s.id, label: s.name, note: s.bestFor[0]}))];
+---
+
+<Base title={BOOK_PAGE.title} description="Book a cut, colour, treatment or wedding hair at Juniper Hair Studio: choose a service, a stylist and a time. A $10 deposit holds your appointment.">
+  <section class="wrap page-head">
+    <h1>{BOOK_PAGE.title}</h1>
+    <p class="lead">{BOOK_PAGE.lede}</p>
+  </section>
+
+  <div class="wrap book-layout">
+    <form
+      class="book-form"
+      data-mail-form
+      data-booking
+      data-subject="Booking request"
+      data-sent="Your email app should now open with your request filled in. Press send, and we will text you to confirm within a few opening hours."
+      action={`mailto:${CONTACT.email}?subject=Booking%20request`}
+      method="post"
+      enctype="text/plain"
+      novalidate
+    >
+      <fieldset class="step">
+        <legend><span class="step-num" aria-hidden="true">1</span> Choose a service</legend>
+        <div class="field">
+          <label for="service">Service</label>
+          <select id="service" name="service" class="input" data-label="Service" required aria-describedby="service-error service-hint">
+            <option value="">Choose a service…</option>
+            {
+              SERVICES.map(group => (
+                <optgroup label={group.title}>
+                  {group.items.map(item => (
+                    <option value={item.id}>
+                      {item.name} · {item.length} · {item.price}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
+            }
+          </select>
+          <p class="hint" id="service-hint">Want two things, like a cut and a gloss? Pick the main one and add the other in the notes. <a href="/services/">See all services</a></p>
+          <p class="error" id="service-error" data-missing="Choose a service." hidden></p>
+        </div>
+      </fieldset>
+
+      <fieldset class="step" aria-describedby="stylist-error">
+        <legend><span class="step-num" aria-hidden="true">2</span> Choose a stylist</legend>
+        <div class="options">
+          {
+            stylistOptions.map(s => (
+              <label class="option">
+                <input type="radio" name="stylist" value={s.id} data-label="Stylist" required checked={s.id === 'any'} />
+                <span>
+                  <strong>{s.label}</strong>
+                  <span class="small muted">{s.note}</span>
+                </span>
+              </label>
+            ))
+          }
+        </div>
+        <p class="error" id="stylist-error" data-missing="Choose a stylist, or first available." hidden></p>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="step-num" aria-hidden="true">3</span> Choose a time</legend>
+        <div class="picked" data-picked hidden>
+          <p><strong>You picked an opening:</strong> <span data-picked-text></span></p>
+          <input type="hidden" name="opening" data-label="Opening requested" value="" />
+          <button type="button" class="btn btn-ghost" data-clear-pick>Choose a different time</button>
+        </div>
+        <div class="when" data-when>
+          <div class="field">
+            <label for="date">Preferred day</label>
+            <input id="date" name="date" type="date" class="input" data-label="Preferred day" required aria-describedby="date-error date-hint" />
+            <p class="hint" id="date-hint">We are closed on Mondays.</p>
+            <p class="error" id="date-error" data-missing="Choose a day." hidden></p>
+          </div>
+          <fieldset class="field sub" aria-describedby="time-error">
+            <legend>Time of day</legend>
+            <div class="options options-row">
+              {
+                ['Morning', 'Afternoon', 'Evening', 'Any time'].map(t => (
+                  <label class="option option-sm">
+                    <input type="radio" name="time" value={t} data-label="Time of day" required />
+                    <span>{t}</span>
+                  </label>
+                ))
+              }
+            </div>
+            <p class="error" id="time-error" data-missing="Choose a time of day." hidden></p>
+          </fieldset>
+          <div class="field">
+            <label for="other-times">Other times that work <span class="muted">(optional)</span></label>
+            <input id="other-times" name="other-times" type="text" class="input" data-label="Other times" placeholder="e.g. any weekday after 4pm" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="step-num" aria-hidden="true">4</span> Your details</legend>
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" name="name" type="text" class="input" autocomplete="name" data-label="Name" required aria-describedby="name-error" />
+          <p class="error" id="name-error" data-missing="Tell us your name." hidden></p>
+        </div>
+        <div class="field">
+          <label for="mobile">Mobile number</label>
+          <input id="mobile" name="mobile" type="tel" class="input" autocomplete="tel" data-label="Mobile" required aria-describedby="mobile-hint mobile-error" />
+          <p class="hint" id="mobile-hint">We text to confirm, and again the day before.</p>
+          <p class="error" id="mobile-error" data-missing="Add a mobile number so we can text you." data-format="That number looks too short." hidden></p>
+        </div>
+        <div class="field">
+          <label for="notes">Anything we should know? <span class="muted">(optional)</span></label>
+          <textarea id="notes" name="notes" class="input" data-label="Notes" placeholder="Hair length, colour history, a photo you love, access needs…"></textarea>
+        </div>
+        <label class="check">
+          <input type="checkbox" name="first-visit" data-label="First visit" />
+          <span>This is my first visit to Juniper</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="step">
+        <legend><span class="step-num" aria-hidden="true">5</span> The {POLICY.deposit} deposit</legend>
+        <ul class="policy-list">
+          {POLICY.points.map(p => <li>{p}</li>)}
+        </ul>
+        <label class="check">
+          <input type="checkbox" name="deposit" data-label="Agrees to deposit terms" required aria-describedby="deposit-error" />
+          <span>I understand a {POLICY.deposit} deposit holds my appointment</span>
+        </label>
+        <p class="error" id="deposit-error" data-missing="Please agree to the deposit terms." hidden></p>
+      </fieldset>
+
+      <div class="submit">
+        <button type="submit" class="btn btn-primary btn-lg">Send booking request</button>
+        <p class="hint">Opens your email app with your request filled in. Rather talk? Call <a href={CONTACT.phoneHref}>{CONTACT.phone}</a>.</p>
+        <p class="form-status" role="status" data-status></p>
+      </div>
+    </form>
+
+    <aside class="how" aria-labelledby="how-title">
+      <h2 id="how-title">How booking works</h2>
+      <ol>
+        <li><strong>Send your request.</strong> Pick a service, a stylist and a time that suits you.</li>
+        <li><strong>We text to confirm.</strong> Usually within a few opening hours, with a secure link for the {POLICY.deposit} deposit.</li>
+        <li><strong>A reminder the day before.</strong> By text, with the time and your stylist’s name.</li>
+        <li><strong>Pay the rest on the day.</strong> The deposit comes off your bill.</li>
+      </ol>
+    </aside>
+  </div>
+</Base>
+
+<script>
+  import {setUpMailForms} from '../scripts/mail-form';
+
+  // Preselect what the link asked for, then wire up the form. Runs on every
+  // page view (the client router), and only does work on this page.
+  document.addEventListener('astro:page-load', () => {
+    const form = document.querySelector<HTMLFormElement>('form[data-booking]');
+    if (!form) return;
+    const params = new URLSearchParams(location.search);
+
+    const service = form.querySelector<HTMLSelectElement>('#service');
+    const wanted = params.get('service');
+    if (service && wanted && [...service.options].some(o => o.value === wanted)) service.value = wanted;
+
+    const stylist = params.get('stylist');
+    const radio = stylist ? form.querySelector<HTMLInputElement>(`input[name="stylist"][value="${CSS.escape(stylist)}"]`) : null;
+    if (radio) radio.checked = true;
+
+    const date = form.querySelector<HTMLInputElement>('#date');
+    if (date) {
+      const now = new Date();
+      date.min = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    // An opening picked on the home page replaces the day / time questions.
+    const picked = form.querySelector<HTMLElement>('[data-picked]');
+    const when = form.querySelector<HTMLElement>('[data-when]');
+    const opening = form.querySelector<HTMLInputElement>('input[name="opening"]');
+    const usePick = (text: string | null) => {
+      if (!picked || !when || !opening) return;
+      picked.hidden = !text;
+      when.hidden = Boolean(text);
+      opening.value = text ?? '';
+      for (const c of when.querySelectorAll<HTMLInputElement>('input')) c.disabled = Boolean(text);
+      const label = picked.querySelector('[data-picked-text]');
+      if (label) label.textContent = text ?? '';
+    };
+    usePick(params.get('when')?.slice(0, 60) ?? null);
+    form.querySelector('[data-clear-pick]')?.addEventListener('click', () => {
+      usePick(null);
+      date?.focus();
+    });
+
+    setUpMailForms();
+  });
+</script>
+
+<style>
+  .book-layout {
+    display: grid;
+    gap: 48px 64px;
+    padding-bottom: var(--section);
+  }
+
+  @media (min-width: 1000px) {
+    .book-layout {
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+      align-items: start;
+    }
+
+    .how {
+      position: sticky;
+      top: 100px;
+    }
+  }
+
+  .book-form {
+    display: grid;
+    gap: 24px;
+  }
+
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .step {
+    display: grid;
+    gap: 20px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: #fff;
+  }
+
+  @media (min-width: 640px) {
+    .step {
+      padding: 32px;
+    }
+  }
+
+  .step > legend {
+    float: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 4px;
+    color: var(--ink);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+
+  .step > legend + * {
+    clear: both;
+  }
+
+  .step-num {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--wash);
+    color: var(--primary);
+    font-size: 15px;
+    letter-spacing: 0;
+  }
+
+  .when {
+    display: grid;
+    gap: 20px;
+  }
+
+  .sub legend {
+    margin-bottom: 8px;
+    padding: 0;
+  }
+
+  .options {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .options-row {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 14px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .option-sm {
+    align-items: center;
+    padding-block: 10px;
+  }
+
+  .option:hover {
+    background: var(--surface);
+  }
+
+  .option:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--wash);
+    box-shadow: 0 0 0 1px var(--primary);
+  }
+
+  .option > span {
+    display: grid;
+    gap: 2px;
+    color: var(--ink);
+  }
+
+  input[type='radio'],
+  input[type='checkbox'] {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin: 1px 0 0;
+    accent-color: var(--primary);
+  }
+
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 44px;
+    color: var(--ink-label);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .picked {
+    display: grid;
+    gap: 8px;
+    justify-items: start;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: var(--wash);
+    color: var(--ink);
+  }
+
+  .picked p {
+    margin: 0;
+  }
+
+  .policy-list {
+    margin: 0;
+    padding-inline-start: 20px;
+  }
+
+  .policy-list li + li {
+    margin-top: 6px;
+  }
+
+  .submit {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+  }
+
+  .how h2 {
+    font-size: clamp(28px, 3vw, 34px);
+    letter-spacing: -0.04em;
+  }
+
+  .how ol {
+    margin: 24px 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: how;
+  }
+
+  .how li {
+    position: relative;
+    padding-block-end: 24px;
+    padding-inline-start: 36px;
+    counter-increment: how;
+  }
+
+  .how li::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 4px;
+    top: 7px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .how li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 8px;
+    top: 22px;
+    bottom: 2px;
+    width: 1px;
+    background: var(--line-strong);
+  }
+
+  .how strong {
+    display: block;
+    color: var(--ink);
+  }
+</style>

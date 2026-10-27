@@ -27,9 +27,9 @@ const jsonLd = postJsonLd({path: `/blog/${post.id}/`, title, description, publis
 ---
 
 <Base title={title} description={description} image={image} imageAlt={coverAlt} type="article" publishedAt={publishedAt} updatedAt={updatedAt} jsonLd={jsonLd}>
-  <article class="wrap narrow section post">
+  <article class="wrap narrow page-head post">
     <header>
-      <p class="eyebrow"><a href="/blog/">Blog</a></p>
+      <p class="eyebrow"><a href="/blog/">Journal</a></p>
       <h1>{title}</h1>
       <p class="meta">
         <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt)}</time>
@@ -54,6 +54,6 @@ const jsonLd = postJsonLd({path: `/blog/${post.id}/`, title, description, publis
         </nav>
       )
     }
-    <p><a href="/blog/">← All posts</a></p>
+    <p><a href="/blog/">← All journal posts</a></p>
   </article>
 </Base>

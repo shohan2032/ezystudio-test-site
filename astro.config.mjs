@@ -53,8 +53,9 @@ export default defineConfig({
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self' mailto:",
-        // Video players a post may embed (an <iframe> in its Markdown).
-        'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com',
+        // Video players a post may embed (an <iframe> in its Markdown), and the
+        // OpenStreetMap embed on the Visit us page (src/pages/visit.astro).
+        'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.openstreetmap.org',
       ],
     },
   },

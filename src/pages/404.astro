@@ -1,16 +1,17 @@
 ---
 /** Built as `404.html` at the root: the platform answers every missing path with it. */
+import {BOOK} from '../content/site';
 import Base from '../layouts/Base.astro';
 ---
 
 <Base title="Page not found" noindex>
-  <section class="wrap narrow section center">
+  <section class="wrap page-head">
     <p class="eyebrow">404</p>
-    <h1>This page doesn't exist</h1>
-    <p class="lede">The link may be old, or the address mistyped.</p>
+    <h1>This page has wandered off</h1>
+    <p class="lead">The link may be old, or the address mistyped. These might help:</p>
     <div class="actions">
-      <a class="button" href="/">Go to the home page</a>
-      <a class="button ghost" href="/blog/">Read the blog</a>
+      <a class="btn btn-primary btn-lg" href={BOOK.href}>{BOOK.label}</a>
+      <a class="btn btn-secondary btn-lg" href="/">Go to the home page</a>
     </div>
   </section>
 </Base>

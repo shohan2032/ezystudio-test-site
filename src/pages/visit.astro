@@ -1,0 +1,278 @@
+---
+/**
+ * Visit us: address, map, hours, phone, getting here and a short message form
+ * (emailed, src/scripts/mail-form.ts). The map is an OpenStreetMap embed
+ * (free, no key; its host is in `frame-src` in astro.config.mjs), pinned at
+ * `ADDRESS.lat` / `ADDRESS.lon` in `src/content/site.ts`.
+ */
+import {Picture} from 'astro:assets';
+
+import {ADDRESS, BOOK, CONTACT, HOURS, VISIT_PAGE} from '../content/site';
+import Base from '../layouts/Base.astro';
+import {salonJsonLd} from '../lib/json-ld';
+import {PHOTOS} from '../lib/photos';
+
+const {lat, lon} = ADDRESS;
+const d = 0.006;
+const map = `https://www.openstreetmap.org/export/embed.html?bbox=${lon - d * 1.6},${lat - d},${lon + d * 1.6},${lat + d}&layer=mapnik&marker=${lat},${lon}`;
+const query = encodeURIComponent(`${ADDRESS.street}, ${ADDRESS.city}`);
+const time12 = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 ? 'am' : 'pm'}`;
+};
+---
+
+<Base title={VISIT_PAGE.title} description={`Juniper Hair Studio, ${ADDRESS.street}, ${ADDRESS.city}. Opening hours, phone, map, parking and how to find us.`} jsonLd={salonJsonLd()}>
+  <section class="wrap page-head">
+    <h1>{VISIT_PAGE.title}</h1>
+    <p class="lead">{VISIT_PAGE.lede}</p>
+  </section>
+
+  <section class="wrap visit-top" aria-label="Address, hours and map">
+    <div class="visit-info">
+      <div class="ruled">
+        <h2 class="label-heading">Address</h2>
+        <address>
+          {ADDRESS.street}<br />{ADDRESS.city}
+        </address>
+        <ul class="links">
+          <li><a href={`https://www.google.com/maps/search/?api=1&query=${query}`} rel="noopener noreferrer" target="_blank">Open in Google Maps<span class="visually-hidden"> (new tab)</span></a></li>
+          <li><a href={`https://maps.apple.com/?q=${query}`} rel="noopener noreferrer" target="_blank">Open in Apple Maps<span class="visually-hidden"> (new tab)</span></a></li>
+        </ul>
+      </div>
+      <div class="ruled">
+        <h2 class="label-heading">Call or text</h2>
+        <p><a class="big-link" href={CONTACT.phoneHref}>{CONTACT.phone}</a></p>
+        {CONTACT.textNote && <p class="small muted">{CONTACT.textNote}</p>}
+        <p><a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a></p>
+      </div>
+      <div class="ruled">
+        <h2 class="label-heading">Opening hours</h2>
+        <table class="hours">
+          <caption class="visually-hidden">Opening hours</caption>
+          <tbody>
+            {
+              HOURS.map(h => (
+                <tr>
+                  <th scope="row">{h.day}</th>
+                  <td>
+                    {h.open ? (
+                      <>
+                        <time datetime={h.open}>{time12(h.open)}</time> – <time datetime={h.close}>{time12(h.close)}</time>
+                      </>
+                    ) : (
+                      'Closed'
+                    )}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="frame map">
+      <iframe
+        title={`Map showing ${ADDRESS.street}`}
+        src={map}
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin allow-popups"
+      ></iframe>
+    </div>
+  </section>
+
+  <section class="section band" aria-labelledby="getting-title">
+    <div class="wrap">
+      <h2 id="getting-title">Getting here</h2>
+      <div class="cols getting">
+        {
+          ADDRESS.directions.map(item => (
+            <div class="ruled">
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="message-title">
+    <div class="wrap message-layout">
+      <div>
+        <h2 id="message-title">Send us a message</h2>
+        <p class="lead">A question about a service, a wedding party, or which stylist suits your hair? We reply within a day.</p>
+        <div class="frame message-photo">
+          <Picture src={PHOTOS.interiorBright.src} alt={PHOTOS.interiorBright.alt} widths={[480, 800, 1200]} sizes="(min-width: 960px) 560px, calc(100vw - 32px)" formats={['avif', 'webp']} />
+        </div>
+      </div>
+      <form
+        class="card message-form"
+        data-mail-form
+        data-subject="Message from the website"
+        action={`mailto:${CONTACT.email}?subject=Message%20from%20the%20website`}
+        method="post"
+        enctype="text/plain"
+        novalidate
+      >
+        <div class="field">
+          <label for="name">Your name</label>
+          <input id="name" name="name" type="text" class="input" autocomplete="name" data-label="Name" required aria-describedby="name-error" />
+          <p class="error" id="name-error" data-missing="Tell us your name." hidden></p>
+        </div>
+        <div class="field">
+          <label for="reply">Email or phone</label>
+          <input id="reply" name="reply" type="text" class="input" data-label="Reply to" required aria-describedby="reply-hint reply-error" />
+          <p class="hint" id="reply-hint">Where should we reply?</p>
+          <p class="error" id="reply-error" data-missing="Tell us how to reply." hidden></p>
+        </div>
+        <div class="field">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" class="input" data-label="Message" required aria-describedby="message-error"></textarea>
+          <p class="error" id="message-error" data-missing="Write your message." hidden></p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg">Send message</button>
+        <p class="form-status" role="status" data-status></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="section dark cta-band" aria-labelledby="cta-title">
+    <div class="wrap">
+      <div>
+        <h2 id="cta-title">See you soon</h2>
+        <p class="lead">Book online in a couple of minutes. We text to confirm, and again the day before.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn-on-dark btn-lg" href={BOOK.href}>{BOOK.label}</a>
+        <a class="btn btn-outline-dark btn-lg" href={CONTACT.phoneHref}>Call {CONTACT.phone}</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import {setUpMailForms} from '../scripts/mail-form';
+
+  document.addEventListener('astro:page-load', setUpMailForms);
+</script>
+
+<style>
+  .visit-top {
+    display: grid;
+    gap: 48px 64px;
+    padding-bottom: var(--section);
+  }
+
+  @media (min-width: 960px) {
+    .visit-top {
+      grid-template-columns: minmax(300px, 1fr) 1.5fr;
+    }
+  }
+
+  .visit-info {
+    display: grid;
+    gap: 32px;
+    align-content: start;
+  }
+
+  .label-heading {
+    margin-bottom: 10px;
+    font-size: 14px;
+    letter-spacing: 0;
+    color: var(--ink-muted);
+  }
+
+  address {
+    color: var(--ink);
+    font-size: 19px;
+    font-style: normal;
+    line-height: 1.4;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 20px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .links a,
+  .visit-info p a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+  }
+
+  .visit-info p {
+    margin: 0;
+  }
+
+  .big-link {
+    font-size: 24px;
+    letter-spacing: -0.03em;
+  }
+
+  .hours th {
+    color: var(--ink-body);
+  }
+
+  .map {
+    min-height: 360px;
+    box-shadow: none;
+  }
+
+  .map iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 360px;
+    border: 0;
+  }
+
+  .getting {
+    margin-top: 48px;
+  }
+
+  .message-layout {
+    display: grid;
+    gap: 48px 64px;
+  }
+
+  @media (min-width: 960px) {
+    .message-layout {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+  }
+
+  .message-layout .lead {
+    margin-top: 20px;
+  }
+
+  .message-photo {
+    margin-top: 40px;
+    aspect-ratio: 3 / 2;
+  }
+
+  .message-form {
+    display: grid;
+    gap: 20px;
+    padding: 24px;
+    border-radius: 20px;
+  }
+
+  @media (min-width: 640px) {
+    .message-form {
+      padding: 32px;
+    }
+  }
+
+  .message-form .btn {
+    justify-self: start;
+  }
+</style>

@@ -4,6 +4,7 @@ description: Add a Markdown file, fill in the front matter, publish.
 publishedAt: 2026-10-10
 author: The team
 tags: [guide]
+draft: true
 ---
 
 1. Create a file in `src/content/blog/`, for example `my-first-post.md` (lowercase, dashes).

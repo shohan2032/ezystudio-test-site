@@ -19,7 +19,7 @@ import '../styles/global.css';
 
 import {ClientRouter} from 'astro:transitions';
 
-import {NAV, SITE} from '../content/site';
+import {ADDRESS, BOOK, CONTACT, HOURS, NAV, SITE} from '../content/site';
 import {type JsonLd, jsonLdText, siteJsonLd} from '../lib/json-ld';
 import {absoluteUrl} from '../lib/site-url';
 
@@ -58,6 +58,10 @@ const path = Astro.url.pathname;
 const canonical = noindex ? null : absoluteUrl(path);
 const socialImage = image ? absoluteUrl(image) : null;
 const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+const time12 = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''}${h < 12 ? 'am' : 'pm'}`;
+};
 // The home page tells search engines the site's name; other pages bring their own.
 const structured = [...(path === '/' ? [siteJsonLd()] : []), ...(jsonLd && !noindex ? [jsonLd] : [])];
 ---
@@ -84,7 +88,9 @@ const structured = [...(path === '/' ? [siteJsonLd()] : []), ...(jsonLd && !noin
     <meta name="twitter:title" content={title ?? SITE.name} />
     <meta name="twitter:description" content={description} />
     {socialImage && <meta name="twitter:image" content={socialImage} />}
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="preload" href="/fonts/schibsted-grotesk.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name} blog`} href="/rss.xml" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
@@ -95,7 +101,7 @@ const structured = [...(path === '/' ? [siteJsonLd()] : []), ...(jsonLd && !noin
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="wrap site-header-inner">
-        <a href="/" class="brand">{SITE.name}</a>
+        <a href="/" class="brand" aria-label={`${SITE.name}, home`}>{SITE.short}<span class="brand-dot" aria-hidden="true"></span></a>
         <nav class="site-nav" aria-label="Main">
           {
             NAV.map(item => (
@@ -105,6 +111,25 @@ const structured = [...(path === '/' ? [siteJsonLd()] : []), ...(jsonLd && !noin
             ))
           }
         </nav>
+        <a class="btn btn-primary" href={BOOK.href} aria-current={active(BOOK.href) ? 'page' : undefined}>{BOOK.label}</a>
+        <details class="menu">
+          <summary class="btn btn-ghost" aria-label="Menu">
+            <svg class="icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+            <svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            Menu
+          </summary>
+          <nav class="menu-panel" aria-label="Main menu">
+            <a href="/" aria-current={active('/') ? 'page' : undefined}>Home</a>
+            {
+              NAV.map(item => (
+                <a href={item.href} aria-current={active(item.href) ? 'page' : undefined}>
+                  {item.label}
+                </a>
+              ))
+            }
+            <a href={BOOK.href} aria-current={active(BOOK.href) ? 'page' : undefined}>{BOOK.label}</a>
+          </nav>
+        </details>
       </div>
     </header>
 
@@ -113,12 +138,48 @@ const structured = [...(path === '/' ? [siteJsonLd()] : []), ...(jsonLd && !noin
     </main>
 
     <footer class="site-footer">
-      <div class="wrap site-footer-inner">
-        <span>© {new Date().getUTCFullYear()} {SITE.name}</span>
+      <div class="wrap site-footer-grid">
+        <div>
+          <p class="brand footer-brand">{SITE.short}<span class="brand-dot" aria-hidden="true"></span></p>
+          <p>{SITE.name}. Cuts, colour and curls in the {ADDRESS.neighbourhood}.</p>
+        </div>
         <nav aria-label="Footer">
-          {NAV.map(item => <a href={item.href}>{item.label}</a>)}
-          <a href="/rss.xml">RSS</a>
+          <h2>Pages</h2>
+          <ul>
+            <li><a href="/">Home</a></li>
+            {NAV.map(item => <li><a href={item.href}>{item.label}</a></li>)}
+            <li><a href={BOOK.href}>{BOOK.label}</a></li>
+          </ul>
         </nav>
+        <div>
+          <h2>Find us</h2>
+          <p>
+            {ADDRESS.street}<br />{ADDRESS.city}
+          </p>
+          <ul>
+            <li><a href={CONTACT.phoneHref}>{CONTACT.phone}</a></li>
+            <li><a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Opening hours</h2>
+          <table class="hours">
+            <tbody>
+              {
+                HOURS.map(h => (
+                  <tr>
+                    <th scope="row">{h.day.slice(0, 3)}</th>
+                    <td>{h.open ? `${time12(h.open)} – ${time12(h.close)}` : 'Closed'}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="wrap site-footer-base">
+        <span>© {new Date().getUTCFullYear()} {SITE.name}</span>
+        <a href="/rss.xml">Journal RSS feed</a>
       </div>
     </footer>
   </body>

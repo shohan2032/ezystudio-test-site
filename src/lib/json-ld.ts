@@ -1,4 +1,4 @@
-import {SITE} from '../content/site';
+import {ADDRESS, CONTACT, HOURS, SITE} from '../content/site';
 import {absoluteUrl, siteOrigin} from './site-url';
 
 /**
@@ -77,5 +77,34 @@ export function postJsonLd(post: {
     inLanguage: SITE.lang,
     ...(url && {url, mainEntityOfPage: url}),
     ...(image && {image}),
+  };
+}
+
+/** The salon itself (`HairSalon`): name, address, phone and hours, as the Visit us page shows them. */
+export function salonJsonLd(): JsonLd {
+  const home = absoluteUrl('/');
+  const id = ids();
+  const dayNames = HOURS.filter(h => h.open);
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HairSalon',
+    ...(id && {'@id': id.organization}),
+    name: SITE.name,
+    description: SITE.description,
+    ...(home && {url: home}),
+    telephone: CONTACT.phone,
+    email: CONTACT.email,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: ADDRESS.street,
+      addressLocality: ADDRESS.city,
+    },
+    geo: {'@type': 'GeoCoordinates', latitude: ADDRESS.lat, longitude: ADDRESS.lon},
+    openingHoursSpecification: dayNames.map(h => ({
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: h.day,
+      opens: h.open,
+      closes: h.close,
+    })),
   };
 }

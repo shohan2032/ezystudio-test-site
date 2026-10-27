@@ -13,10 +13,10 @@ const posts = await publishedPosts();
 const tags = tagsOf(posts);
 ---
 
-<Base title="Blog" description="Stories, guides and updates.">
-  <section class="wrap section">
-    <h1>Blog</h1>
-    <p class="lede">Stories, guides and updates.</p>
+<Base title="Journal" description="Hair care tips, colour advice and news from the studio at Juniper Hair Studio.">
+  <section class="wrap page-head">
+    <h1>Journal</h1>
+    <p class="lead">Hair care tips, colour advice and news from the studio.</p>
     {
       tags.length > 0 && (
         <nav aria-label="Topics">

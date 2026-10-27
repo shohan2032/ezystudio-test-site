@@ -16,13 +16,13 @@ const count = tag.posts.length;
 ---
 
 <Base title={`Posts tagged #${tag.label}`} description={`${count} ${count === 1 ? 'post' : 'posts'} tagged #${tag.label}.`}>
-  <section class="wrap section">
-    <p class="eyebrow"><a href="/blog/">Blog</a></p>
+  <section class="wrap page-head">
+    <p class="eyebrow"><a href="/blog/">Journal</a></p>
     <h1>#{tag.label}</h1>
-    <p class="lede">{count} {count === 1 ? 'post' : 'posts'}.</p>
+    <p class="lead">{count} {count === 1 ? 'post' : 'posts'}.</p>
     <div class="grid grid-3">
       {tag.posts.map((post, i) => <PostCard post={post} as="h2" eager={i < 3} />)}
     </div>
-    <p><a href="/blog/">← All posts</a></p>
+    <p><a href="/blog/">← All journal posts</a></p>
   </section>
 </Base>
