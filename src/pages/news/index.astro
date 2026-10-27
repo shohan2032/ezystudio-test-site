@@ -1,0 +1,44 @@
+---
+/**
+ * News, as a publication: featured story, then the list. Built from the
+ * Markdown files in `src/content/blog/` (PRERENDERED: a new post goes live
+ * with the next Publish). To add a post, add a Markdown file.
+ */
+import Cover from '../../components/Cover.astro';
+import PostRow from '../../components/PostRow.astro';
+import Base from '../../layouts/Base.astro';
+import {postHref, publishedPosts} from '../../lib/posts';
+import {staticContext} from '../../server/page';
+
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+const [featured, ...rest] = await publishedPosts();
+---
+
+<Base site={site} viewer={viewer} isStatic title="News" description="News from the kitchen at Fennel & Fig: new menus, supper clubs, suppliers and the people behind the food.">
+  <main id="main" tabindex="-1" class="pub">
+    <header class="page-head pub-head">
+      <h1>News</h1>
+      <p class="lede-lg">New menus, supper clubs, the farms we buy from, and the odd recipe. Also by <a href="/rss.xml">feed</a>.</p>
+    </header>
+
+    {
+      featured ? (
+        <a class="pub-featured" href={postHref(featured)} data-astro-prefetch>
+          {featured.data.cover && (
+            <Cover src={featured.data.cover} alt={featured.data.coverAlt} width={1200} height={630} sizes="(min-width: 760px) 720px, calc(100vw - 32px)" eager />
+          )}
+          <h2>{featured.data.title}</h2>
+          <p class="pub-subtitle">{featured.data.description}</p>
+        </a>
+      ) : (
+        <p class="lede">Nothing to report yet — check back after Thursday’s menu change.</p>
+      )
+    }
+
+    <div class="pub-list">
+      {rest.map(post => <PostRow post={post} />)}
+    </div>
+  </main>
+</Base>

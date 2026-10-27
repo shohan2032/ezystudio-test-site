@@ -7,6 +7,7 @@
  *   npm run platform -- docs [--site URL]   live platform docs → .platform/docs/ (git-ignored)
  *   npm run platform -- check [--from DIR]  is a newer template release out?
  *   npm run platform -- upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run]
+ *   npm run platform -- jobs                 check background.json and its handlers (no network)
  *
  * WHERE RELEASES COME FROM: `template.json` `repo`.
  *   - `file:<path>` (today: the platform's templates are not published yet) — a
@@ -20,8 +21,8 @@
  *   - `owner/name` — a GitHub repository with `vX.Y.Z` tags (later).
  *
  * UPGRADE, file by file, from the version in `template.json` to the target:
- *   - MANAGED paths (`docs/agent/**`, this script, `CHANGELOG.md`) are the
- *     template's own: replaced wholesale. Do not edit them; extend them from
+ *   - MANAGED paths (`src/platform/**`, `docs/agent/**`, this script,
+ *     `CHANGELOG.md`) are the template's own: replaced wholesale. Do not edit them; extend them from
  *     your own code instead.
  *   - Everything else is a 3-way merge (`git merge-file`): base = the old
  *     template, ours = your file, theirs = the new template. Your changes are
@@ -38,7 +39,7 @@ import {dirname, isAbsolute, join, relative, resolve} from 'node:path';
 
 const ROOT = process.cwd();
 const MANIFEST = join(ROOT, 'template.json');
-const MANAGED = [/^docs\/agent\//, /^scripts\/platform\.mjs$/, /^CHANGELOG\.md$/];
+const MANAGED = [/^src\/platform\//, /^docs\/agent\//, /^scripts\/platform\.mjs$/, /^CHANGELOG\.md$/];
 const NEVER = [/^\.git\//, /^node_modules\//, /^dist\//, /^\.astro\//, /^\.wrangler\//, /^\.platform\//, /(^|\/)\.DS_Store$/, /^src\/generated\//, /^template\.json$/, /^\.env$/, /^\.dev\.vars/];
 const SKIP_IN_MERGE = [/^package-lock\.json$/];
 
@@ -284,9 +285,77 @@ async function upgrade() {
   }
 }
 
-const commands = {docs, check, upgrade};
+/**
+ * `jobs`: the same checks the platform runs on background.json when you publish (names, keys,
+ * timing, time zones), plus: every list a schedule uses has a handler in src/server/background.ts.
+ * Offline; prints every problem at once.
+ */
+async function jobs() {
+  const NAME = /^[a-z0-9][a-z0-9-]{0,62}$/;
+  const EVERY = new Set(['minute', 'hour', 'day', 'weekday', 'week', 'month']);
+  const file = join(ROOT, 'background.json');
+  const problems = [];
+  if (!existsSync(file)) {
+    console.log('background.json: none (no schedules). Sending jobs still works.');
+    return;
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    throw new Error(`background.json is not valid JSON: ${error.message}`);
+  }
+  const lists = manifest.lists ?? {};
+  const schedules = manifest.schedules ?? {};
+  for (const key of Object.keys(manifest)) if (!['lists', 'schedules', '$schema'].includes(key)) problems.push(`unknown key "${key}"`);
+  for (const [name, list] of Object.entries(lists)) {
+    if (!NAME.test(name)) problems.push(`lists.${name}: lower-case letters, digits, dashes`);
+    for (const key of Object.keys(list ?? {})) if (!['retries', 'concurrency', 'label', 'ordered'].includes(key)) problems.push(`lists.${name}: unknown key "${key}"`);
+    if (list?.ordered !== undefined && typeof list.ordered !== 'boolean') problems.push(`lists.${name}.ordered: true or false`);
+    if (list?.retries !== undefined && !(Number.isInteger(list.retries) && list.retries >= 0 && list.retries <= 9)) problems.push(`lists.${name}.retries: 0 to 9`);
+    if (list?.concurrency !== undefined && !(Number.isInteger(list.concurrency) && list.concurrency >= 1 && list.concurrency <= 100)) problems.push(`lists.${name}.concurrency: 1 to 100`);
+  }
+  const needed = new Set(Object.keys(lists));
+  for (const [name, s] of Object.entries(schedules)) {
+    const where = `schedules.${name}`;
+    if (!NAME.test(name)) problems.push(`${where}: lower-case letters, digits, dashes`);
+    for (const key of Object.keys(s ?? {})) if (!['list', 'cron', 'every', 'at', 'day', 'tz', 'label', 'data'].includes(key)) problems.push(`${where}: unknown key "${key}"`);
+    const list = s?.list ?? name;
+    if (!NAME.test(list)) problems.push(`${where}.list: a list name`);
+    needed.add(list);
+    if ((s?.cron === undefined) === (s?.every === undefined)) problems.push(`${where}: give "cron" OR "every"`);
+    if (s?.cron !== undefined) {
+      const fields = String(s.cron).trim().split(/\s+/);
+      if (fields.length !== 5) problems.push(`${where}.cron: 5 fields (minute hour day month weekday)`);
+      else if (fields[2] !== '*' && fields[4] !== '*') problems.push(`${where}.cron: a day of the month OR a weekday, not both (use two schedules)`);
+    }
+    if (s?.every !== undefined && !EVERY.has(s.every)) problems.push(`${where}.every: one of ${[...EVERY].join(', ')}`);
+    if (s?.at !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(s.at)) problems.push(`${where}.at: "HH:MM" (24-hour)`);
+    if (s?.day !== undefined && !(Number.isInteger(s.day) && s.day >= 0 && s.day <= 6)) problems.push(`${where}.day: 0 (Sunday) to 6 (Saturday)`);
+    if (s?.tz !== undefined) {
+      try {
+        new Intl.DateTimeFormat('en', {timeZone: s.tz});
+      } catch {
+        problems.push(`${where}.tz: "${s.tz}" is not a time zone`);
+      }
+    }
+  }
+  const handlersFile = join(ROOT, 'src/server/background.ts');
+  const handlers = existsSync(handlersFile) ? readFileSync(handlersFile, 'utf8').replace(/\/\/.*$/gm, '') : '';
+  for (const list of needed) {
+    if (!new RegExp(`['"]?${list}['"]?\\s*:`).test(handlers)) problems.push(`no handler for "${list}" in src/server/background.ts`);
+  }
+  if (problems.length) {
+    console.log(`background.json: ${problems.length} problem(s)\n  - ${problems.join('\n  - ')}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`background.json: ok (${Object.keys(lists).length} list(s), ${Object.keys(schedules).length} schedule(s)). The platform checks it again when you publish.`);
+}
+
+const commands = {docs, check, upgrade, jobs};
 if (!commands[command]) {
-  console.log('usage: npm run platform -- docs [--site URL] | check [--from DIR] | upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run] [--force]');
+  console.log('usage: npm run platform -- docs [--site URL] | check [--from DIR] | upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run] [--force] | jobs');
 } else {
   commands[command]().catch(error => {
     console.error(`platform ${command}: ${error.message}`);

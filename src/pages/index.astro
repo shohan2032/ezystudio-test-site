@@ -1,323 +1,174 @@
 ---
 /**
- * Home: a big hero photo, a strip of recent work, what we do, this week's
- * openings, reviews and a closing "Book now" band. Words in
- * `src/content/site.ts`, photos in `src/lib/photos.ts`. No JavaScript.
+ * The home page: PRERENDERED, photographs first (Hallmark "Photographic").
+ * Words in `src/content/site.ts`. Today's specials are filled in by the
+ * browser from `/site-api/specials` (staff edit them in `/portal/specials`);
+ * the latest news comes from `src/content/blog/` at build time.
  */
-import {Picture} from 'astro:assets';
-
-import {BOOK, HOME, OPENINGS, REVIEWS, STYLISTS} from '../content/site';
+import Photo from '../components/Photo.astro';
+import {HOME, PHOTOS, photo, RESTAURANT, REVIEWS} from '../content/site';
 import Base from '../layouts/Base.astro';
-import {GALLERY, PHOTOS} from '../lib/photos';
+import {MAX_PARTY} from '../lib/booking';
+import {formatDate, postHref, publishedPosts} from '../lib/posts';
+import {staticContext} from '../server/page';
 
-const stylist = (id: string) => STYLISTS.find(s => s.id === id);
-const strip = GALLERY.filter(p => !p.tall).slice(0, 4);
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+const latest = (await publishedPosts()).slice(0, 3);
+const [lead, ...more] = REVIEWS;
 ---
 
-<Base>
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="wrap hero-inner">
-      <div class="hero-text">
-        <p class="eyebrow">{HOME.hero.eyebrow}</p>
-        <h1 id="hero-title" class="hero-title">{HOME.hero.title}</h1>
-        <p class="lead">{HOME.hero.body}</p>
-        <div class="actions">
-          <a class="btn btn-primary btn-lg" href={BOOK.href}>{BOOK.label}</a>
-          <a class="btn btn-secondary btn-lg" href="/services/">See services & prices</a>
+<Base site={site} viewer={viewer} isStatic image={photo(PHOTOS.hero.src, 1200, 630)} imageAlt={PHOTOS.hero.alt}>
+  <main id="main" tabindex="-1">
+    <section class="fold" aria-labelledby="home-title">
+      <Photo photo={PHOTOS.hero} sizes="100vw" widths={[640, 1024, 1600, 2200]} eager />
+      <div class="fold-text">
+        <p class="fold-caption">{PHOTOS.hero.caption}</p>
+        <h1 id="home-title">A wood-fire kitchen on Stokes Croft</h1>
+        <div class="fold-actions">
+          <a class="btn" href="/book/" data-astro-prefetch>Book a table</a>
+          <a class="link-arrow" href="/menu/" data-astro-prefetch>See the menu</a>
         </div>
       </div>
-      <div class="hero-image frame">
-        <Picture
-          src={PHOTOS.hero.src}
-          alt={PHOTOS.hero.alt}
-          widths={[480, 800, 1200, 1600]}
-          sizes="(min-width: 1240px) 560px, (min-width: 1000px) 45vw, calc(100vw - 32px)"
-          formats={['avif', 'webp']}
-          loading="eager"
-          fetchpriority="high"
-        />
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section work" aria-labelledby="work-title">
-    <div class="wrap">
-      <div class="section-head">
-        <h2 id="work-title">Recent work from the chair</h2>
-        <a class="more" href="/gallery/">See the full gallery →</a>
-      </div>
-      <ul class="work-grid" role="list">
-        {
-          strip.map(photo => (
-            <li>
-              <figure>
-                <div class="frame work-frame">
-                  <Picture src={photo.src} alt={photo.alt} widths={[320, 640, 900]} sizes="(min-width: 1240px) 290px, (min-width: 700px) 45vw, calc(100vw - 32px)" formats={['avif', 'webp']} />
-                </div>
-                <figcaption class="small muted">{photo.caption}</figcaption>
-              </figure>
-            </li>
-          ))
-        }
-      </ul>
-    </div>
-  </section>
-
-  <section class="section band" aria-labelledby="what-title">
-    <div class="wrap">
-      <div class="section-head">
-        <h2 id="what-title">{HOME.intro.title}</h2>
-        <a class="more" href="/services/">Full price list →</a>
-      </div>
-      <div class="cols">
-        {
-          HOME.intro.items.map(item => (
-            <div class="ruled">
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-              <p class="from">{item.from}</p>
-              <a class="more" href={item.href}>
-                {item.title} prices <span aria-hidden="true">→</span>
-              </a>
-            </div>
-          ))
-        }
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="openings-title">
-    <div class="wrap">
-      <div class="section-head">
+    <section class="band shell" aria-label="Our story">
+      <div class="band-split">
         <div>
-          <h2 id="openings-title">This week’s openings</h2>
-          <p class="muted openings-updated">{OPENINGS.updated}. Times go quickly; tap one to request it.</p>
+          <p class="band-statement">{HOME.story}</p>
+          <p class="prose">{HOME.storyMore}</p>
+          <a class="link-arrow" href="/about/" data-astro-prefetch>Our story</a>
         </div>
-        <a class="more" href={BOOK.href}>Pick another time →</a>
+        <dl class="hours" aria-label="At a glance">
+          <dt>Dinner</dt>
+          <dd>Wednesday – Saturday</dd>
+          <dt>Lunch</dt>
+          <dd>Friday – Sunday</dd>
+          <dt>Tables</dt>
+          <dd>Up to {MAX_PARTY}, or the whole room</dd>
+          <dt>Walk-ins</dt>
+          <dd>Always a few seats at the bar</dd>
+        </dl>
       </div>
-      <ul class="openings" role="list">
-        {
-          OPENINGS.items.map(slot => {
-            const who = stylist(slot.stylist);
-            return (
-              <li>
-                <a class="opening" href={`${BOOK.href}?stylist=${slot.stylist}&when=${encodeURIComponent(`${slot.day}, ${slot.time}`)}`}>
-                  <span class="opening-when">
-                    <span class="opening-day">{slot.day}</span>
-                    <span class="opening-time">{slot.time}</span>
-                  </span>
-                  <span class="opening-who">
-                    with {who?.name.split(' ')[0]}
-                    <span class="small muted">{slot.note}</span>
-                  </span>
-                  <span class="badge">Request</span>
-                </a>
-              </li>
-            );
-          })
-        }
-      </ul>
-    </div>
-  </section>
+    </section>
 
-  <section class="section band" aria-labelledby="reviews-title">
-    <div class="wrap">
-      <div class="section-head">
-        <h2 id="reviews-title">What clients say</h2>
+    <section class="band-tight shell" aria-labelledby="specials-title" data-specials>
+      <div class="board">
+        <figure class="board-photo">
+          <Photo photo={PHOTOS.fire} sizes="(min-width: 52rem) 40vw, 100vw" ratio={1.25} widths={[480, 720, 960]} />
+        </figure>
+        <div>
+          <div class="board-head">
+            <h2 id="specials-title">Today’s specials</h2>
+            <p class="board-date" data-today>Chalked up every afternoon at four.</p>
+          </div>
+          <p class="board-empty" data-state="loading">Reading the board…</p>
+          <ul class="dish-list" data-list hidden></ul>
+          <p class="board-empty" data-state="empty" hidden>
+            The board is being written. Ask at the table — or see the full menu, which changes every Thursday.
+          </p>
+          <p class="board-empty" data-state="error" hidden>
+            We could not load the board just now. The full menu is always on the <a href="/menu/">menu page</a>.
+          </p>
+          <p><a class="link-arrow" href="/menu/" data-astro-prefetch>The full menu</a></p>
+        </div>
       </div>
-      <div class="cols">
+    </section>
+
+    <section class="fold fold-short" aria-labelledby="share-title">
+      <Photo photo={PHOTOS.table} sizes="100vw" widths={[640, 1024, 1600, 2200]} />
+      <div class="fold-text">
+        <p class="fold-caption">Plates for the middle</p>
+        <h2 id="share-title">Order a few, pass them round</h2>
+        <div class="fold-actions">
+          <a class="link-arrow" href="/events/" data-astro-prefetch>Groups &amp; private dining</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band shell" aria-labelledby="reviews-title">
+      <div class="section-head">
+        <h2 id="reviews-title">What people say</h2>
+      </div>
+      <div class="reviews">
         {
-          REVIEWS.map(review => (
-            <figure class="review ruled">
+          lead && (
+            <figure class="review review-lead">
               <blockquote>
-                <p>“{review.quote}”</p>
+                <p>“{lead.quote}”</p>
               </blockquote>
               <figcaption>
-                <span class="avatar" aria-hidden="true">
-                  {review.name.charAt(0)}
-                </span>
-                <span>
-                  <strong>{review.name}</strong>
-                  <span class="small muted">{review.detail}</span>
-                </span>
-                {review.sample && <span class="badge badge-grey">Sample review</span>}
+                — {lead.author}, {lead.source}
+                {lead.sample && <span class="sample-tag">Sample review</span>}
               </figcaption>
             </figure>
-          ))
+          )
         }
+        <div class="reviews-more">
+          {
+            more.map(review => (
+              <figure class="review">
+                <blockquote>
+                  <p>“{review.quote}”</p>
+                </blockquote>
+                <figcaption>
+                  — {review.author}, {review.source}
+                  {review.sample && <span class="sample-tag">Sample review</span>}
+                </figcaption>
+              </figure>
+            ))
+          }
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section dark cta-band" aria-labelledby="cta-title">
-    <div class="wrap">
-      <div>
-        <h2 id="cta-title">{HOME.cta.title}</h2>
-        <p class="lead">{HOME.cta.body}</p>
+    {
+      latest.length > 0 && (
+        <section class="band-tight shell" aria-labelledby="news-title">
+          <div class="section-head">
+            <h2 id="news-title">News from the kitchen</h2>
+            <a class="link-arrow" href="/news/" data-astro-prefetch>All news</a>
+          </div>
+          <ul class="news-list">
+            {latest.map(post => (
+              <li>
+                <a href={postHref(post)} data-astro-prefetch>
+                  <h3>{post.data.title}</h3>
+                  <time datetime={post.data.publishedAt.toISOString()}>{formatDate(post.data.publishedAt)}</time>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="closing" aria-labelledby="closing-title">
+      <div class="shell closing-inner">
+        <div>
+          <h2 id="closing-title">Come and eat with us</h2>
+          <p>Book online for up to {MAX_PARTY}, or call — we pick up from noon, Wednesday to Sunday.</p>
+        </div>
+        <div class="closing-actions">
+          <a class="btn" href="/book/" data-astro-prefetch>Book a table</a>
+          <a class="link-arrow" href={RESTAURANT.phoneHref}>Call {RESTAURANT.phone}</a>
+        </div>
       </div>
-      <div class="actions">
-        <a class="btn btn-on-dark btn-lg" href={BOOK.href}>{BOOK.label}</a>
-        <a class="btn btn-outline-dark btn-lg" href="/visit/">Find the studio</a>
-      </div>
-    </div>
-  </section>
+    </section>
+  </main>
 </Base>
 
-<style>
-  .hero {
-    padding-block: 48px var(--section);
-  }
+<script>
+  import {formatDay, londonToday} from '../lib/booking';
+  import {fillSpecials} from '../lib/specials-board';
 
-  .hero-inner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 48px 64px;
-  }
-
-  .hero-text {
-    flex: 1 1 520px;
-  }
-
-  .hero-text .lead {
-    margin-top: 20px;
-  }
-
-  .hero-image {
-    flex: 1 1 400px;
-    aspect-ratio: 4 / 5;
-    max-height: 640px;
-  }
-
-  @media (min-width: 768px) {
-    .hero {
-      padding-top: 80px;
-    }
-  }
-
-  .work-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 32px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .work-grid figure {
-    margin: 0;
-  }
-
-  .work-frame {
-    aspect-ratio: 4 / 5;
-    box-shadow: none;
-  }
-
-  .work-grid figcaption {
-    margin-top: 12px;
-  }
-
-  .from {
-    margin: 0 0 12px;
-    color: var(--ink);
-    font-weight: 700;
-  }
-
-  .openings-updated {
-    margin: 12px 0 0;
-  }
-
-  .openings {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .opening {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 20px 24px;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    color: var(--ink-body);
-    text-decoration: none;
-  }
-
-  .opening:hover {
-    color: var(--ink-body);
-    border-color: var(--line-strong);
-    box-shadow: var(--shadow-lift);
-  }
-
-  .opening-when {
-    display: grid;
-    min-width: 92px;
-  }
-
-  .opening-day {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink-muted);
-  }
-
-  .opening-time {
-    color: var(--ink);
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    line-height: 1.1;
-  }
-
-  .opening-who {
-    display: grid;
-    flex: 1;
-    color: var(--ink-label);
-    font-weight: 600;
-  }
-
-  .opening-who .small {
-    font-weight: 400;
-  }
-
-  .review {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-  }
-
-  .review blockquote {
-    flex: 1;
-    margin: 0 0 24px;
-    color: var(--ink);
-    font-size: 19px;
-    line-height: 1.5;
-  }
-
-  .review figcaption {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .review figcaption > span:nth-child(2) {
-    display: grid;
-    flex: 1;
-    color: var(--ink);
-  }
-
-  .avatar {
-    display: grid;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--primary-tint);
-    color: var(--primary-strong);
-    font-weight: 600;
-  }
-</style>
+  // Runs on every `astro:page-load` (ClientRouter) while this is the page.
+  document.addEventListener('astro:page-load', () => {
+    const section = document.querySelector<HTMLElement>('[data-specials]');
+    if (!section) return;
+    const today = section.querySelector<HTMLElement>('[data-today]');
+    if (today) today.textContent = `${formatDay(londonToday(new Date()))} · chalked up at four`;
+    void fillSpecials(section);
+  });
+</script>

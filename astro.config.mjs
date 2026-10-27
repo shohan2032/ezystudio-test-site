@@ -1,49 +1,64 @@
-import {defineConfig, envField} from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
+import react from '@astrojs/react';
+import {defineConfig} from 'astro/config';
 
-/**
- * A STATIC site: every page is prerendered to plain files in `dist/` (no
- * adapter, no server code). The platform serves them as they are; a root
- * `404.html` answers every miss. The blog is Markdown in `src/content/blog/`,
- * built into pages like everything else.
- *
- * Search and feeds are files too: `/sitemap.xml`, `/robots.txt` and
- * `/rss.xml` are built from `src/pages/*.xml.ts` / `robots.txt.ts`.
- *
- * Navigation is client-side (`<ClientRouter />` in Base.astro) between real
- * prerendered pages (best for search): the next page is fetched ahead by
- * `prefetch` (below) and swapped in without a reload.
- */
-
+// Pages render on request on a Cloudflare Worker (marketing and account pages
+// are prerendered). Beside them the same Worker serves the portal
+// (`/portal/*`, a React app) and the Site API (`/site-api/*`, a Hono app).
+// One project, one build, one dev server.
+//
+// Public pages stay real HTML pages (best for search), navigated client-side
+// by `<ClientRouter />` (src/layouts/Base.astro) and fetched ahead by
+// `prefetch` (below). The portal is a React app with its own router.
+//
+// No wrangler config is committed: the platform writes the deploy config at
+// build time, so it can never be broken by an edit here.
 export default defineConfig({
-  output: 'static',
-  // Fetch a page before the click: every same-site link when the visitor
-  // hovers or focuses it (`hover`: only pages someone is about to open, so no
-  // wasted bytes), the header nav as soon as it is on screen
+  output: 'server',
+  // Fetch a page before the click, for links marked `data-astro-prefetch`:
+  // on hover or focus (`hover`), the header nav as soon as it is on screen
   // (`data-astro-prefetch="viewport"` in Base.astro: phones have no hover).
-  // Skipped on slow connections and with Data Saver. With the client router,
-  // the site's only scripts: small deferred modules from 'self' (performance.md).
-  prefetch: {prefetchAll: true, defaultStrategy: 'hover'},
-  // Directory URLs (`/about/`) with trailing slashes, as a static host serves them.
-  trailingSlash: 'ignore',
-  build: {
-    format: 'directory',
-    // The stylesheet is small: inline it in every page so nothing blocks the
-    // first paint (no extra request; the CSP hashes it).
-    inlineStylesheets: 'always',
-  },
-  env: {
-    schema: {
-      // The site's own address, set by the platform during a Publish build. Read
-      // only through src/lib/site-url.ts (canonical URLs, sitemap, RSS).
-      SITE_URL: envField.string({context: 'server', access: 'public', optional: true}),
+  // OPT-IN, not `prefetchAll`: only links to PRERENDERED pages are marked.
+  // Per-visit pages (`/jobs/*`, `/portal`) answer `no-store`, so a prefetch of
+  // them would be thrown away (a wasted Worker request), and the portal
+  // preloads its own screens (TanStack Router). Skipped on slow connections
+  // and with Data Saver. The script is a small deferred module from 'self'.
+  prefetch: {prefetchAll: false, defaultStrategy: 'hover'},
+  adapter: cloudflare({
+    // Images in PRERENDERED pages (blog covers from src/assets) are optimised at
+    // BUILD time with sharp (AVIF/WebP, several widths); on the Worker they are
+    // passed through, never resized: on-demand transforms need a Cloudflare
+    // Images binding the platform does not give a Site.
+    imageService: 'compile',
+  }),
+  integrations: [
+    react(),
+    {
+      // `npm run build` while the Preview's dev server runs in the same folder
+      // (the editor) must not rewrite the dev server's dependency cache under
+      // it (every page then answered 500 until a restart): builds get their own.
+      name: 'separate-build-cache',
+      hooks: {
+        'astro:config:setup': ({command, updateConfig}) => {
+          if (command === 'build') updateConfig({vite: {cacheDir: 'node_modules/.vite-build'}});
+        },
+      },
     },
-  },
+  ],
+  // Sessions need a KV binding the platform does not give a Site either; with
+  // them on, any `Astro.session` call would fail at request time. Sign-in is
+  // the site's own (src/platform/auth), on cookies.
+  session: false,
+  redirects: {'/account': '/account/login/'},
   // No Markdown code blocks here; Shiki's inline styles would break the CSP.
   markdown: {syntaxHighlight: false},
   security: {
-    // A Content-Security-Policy in every page, with a hash for each script and
-    // style Astro emits. The browser talks only to this host (`connect-src
-    // 'self'`); images may come from any https CDN (logos, blog covers).
+    // Astro writes a Content-Security-Policy into every page, with a hash for
+    // each script and style it emits: no inline code it did not write runs.
+    // `connect-src 'self'`: the browser only ever talks to this site's own
+    // `/site-api`. Images may come from any https CDN (logos, blog covers).
+    // Frame protection is a header (`X-Frame-Options`, src/platform/headers.ts
+    // and public/_headers): a meta CSP cannot set `frame-ancestors`.
     csp: {
       directives: [
         "default-src 'self'",
@@ -52,10 +67,9 @@ export default defineConfig({
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",
-        "form-action 'self' mailto:",
-        // Video players a post may embed (an <iframe> in its Markdown), and the
-        // OpenStreetMap embed on the Visit us page (src/pages/visit.astro).
-        'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.openstreetmap.org',
+        "form-action 'self'",
+        // Blog posts may embed these players (src/platform/sanitize.ts allows them).
+        'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com',
       ],
     },
   },

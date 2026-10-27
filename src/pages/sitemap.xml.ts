@@ -1,41 +1,52 @@
 import type {APIRoute} from 'astro';
 
-import {postHref, publishedPosts, tagHref, tagsOf} from '../lib/posts';
-import {absoluteUrl} from '../lib/site-url';
+import {postHref, publishedPosts} from '../lib/posts';
+import {absoluteUrl, xmlEscape as escape} from '../lib/seo';
+import {backend, read} from '../server/backend';
 
 /**
- * `/sitemap.xml`, built with the site: every page in `src/pages/` (found
- * automatically), every post and every tag page. A page that must stay out of
- * search (it has `<Base noindex>`) goes in `EXCLUDE` too.
+ * `/sitemap.xml`, rendered ON REQUEST (it lists the open jobs from the Site
+ * Database) and cached for an hour: the public pages in `src/pages/` (found
+ * automatically), every blog post and the newest open jobs (one bounded,
+ * indexed query: `GET /site-api/jobs/sitemap`).
  *
- * Search engines need absolute URLs: without a known address (`npm run dev`,
- * the Preview) the list is empty. A Publish always knows it (src/lib/site-url.ts).
+ * Never listed: sign-in pages, the dashboard, the API, the 404 and 500 pages. A new public
+ * dynamic route (`[slug].astro`) is not found automatically: add its URLs
+ * here, as posts and jobs are. A page with `<Base noindex>` goes in EXCLUDE.
  */
-const EXCLUDE = new Set(['/404/']);
+export const prerender = false;
 
-/** `./about.astro` → `/about/`, `./blog/index.astro` → `/blog/`; dynamic (`[slug]`) pages are listed below. */
+const EXCLUDE = new Set(['/404/', '/500/']);
+const PRIVATE = /^\/(account|portal|site-api)(\/|$)/;
+
+/** `./about.astro` → `/about/`, `./blog/index.astro` → `/blog/` (every page URL ends with `/`, like the canonical). */
 const pagePaths = Object.keys(import.meta.glob('./**/*.astro'))
   .filter(file => !file.includes('['))
   .map(file => `/${file.slice(2).replace(/\.astro$/, '').replace(/(^|\/)index$/, '')}/`.replace(/\/+/g, '/'))
-  .filter(path => !EXCLUDE.has(path))
+  .filter(path => !PRIVATE.test(path) && !EXCLUDE.has(path))
   .sort();
 
-const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-export const GET: APIRoute = async () => {
-  const posts = await publishedPosts();
-  const entries: {path: string; lastmod?: Date}[] = [
+export const GET: APIRoute = async ({request}) => {
+  const [posts, jobs] = await Promise.all([
+    publishedPosts(),
+    read<{jobs: {slug: string; updatedAt: string}[]}>(backend(request).jobs.sitemap.$get()),
+  ]);
+  const entries: {path: string; lastmod?: string}[] = [
     ...pagePaths.map(path => ({path})),
-    ...posts.map(post => ({path: postHref(post), lastmod: post.data.updatedAt ?? post.data.publishedAt})),
-    ...tagsOf(posts).map(tag => ({path: tagHref(tag.label)})),
+    ...posts.map(post => ({path: postHref(post), lastmod: (post.data.updatedAt ?? post.data.publishedAt).toISOString()})),
+    ...(jobs?.jobs ?? []).map(job => ({path: `/jobs/${encodeURIComponent(job.slug)}/`, lastmod: job.updatedAt})),
   ];
-  const urls = entries
-    .map(({path, lastmod}) => ({loc: absoluteUrl(path), lastmod}))
-    .filter((entry): entry is {loc: string; lastmod: Date | undefined} => entry.loc !== null)
-    .map(
-      ({loc, lastmod}) =>
-        `  <url><loc>${escape(loc)}</loc>${lastmod ? `<lastmod>${lastmod.toISOString().slice(0, 10)}</lastmod>` : ''}</url>`
-    );
+  const urls = entries.flatMap(({path, lastmod}) => {
+    const loc = absoluteUrl(path);
+    return loc ? [`  <url><loc>${escape(loc)}</loc>${lastmod ? `<lastmod>${lastmod.slice(0, 10)}</lastmod>` : ''}</url>`] : [];
+  });
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}${urls.length ? '\n' : ''}</urlset>\n`;
-  return new Response(body, {headers: {'Content-Type': 'application/xml; charset=utf-8'}});
+  return new Response(body, {
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      // The same for everyone (no cookies read): browsers and caches may keep it an hour,
+      // but only a complete one: without the jobs (a database outage) a few minutes.
+      'Cache-Control': jobs ? 'public, max-age=3600' : 'public, max-age=300',
+    },
+  });
 };

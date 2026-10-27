@@ -1,0 +1,134 @@
+/* Hallmark · genre: editorial · macrostructure: Photographic · theme: warm-oat paper, ember accent · enrichment: none (real photography) · nav: N6 masthead · footer: Ft6 letter close
+ * tone: warm editorial · anchor hue: 45 (ember) · display: Fraunces (roman, 700) · body: Newsreader (400)
+ * axes: paper light (L 96%) / high-contrast-serif / warm
+ * pre-emit critique: P4 H4 E4 S5 R4 V4
+ *
+ * THE design tokens for the whole site (public pages, sign-in pages, portal).
+ * Every colour and font in src/styles/*.css reads one of these by name.
+ * Light site only, on purpose: the owner asked for light backgrounds.
+ */
+
+/* Self-hosted (the CSP allows fonts from 'self' only). Both are SIL Open Font License. */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/fonts/fraunces-latin.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-latin.woff2') format('woff2');
+  font-weight: 300 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader-italic-latin.woff2') format('woff2');
+  font-weight: 300 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Metric-matched fallbacks: less layout shift while the web fonts load. */
+@font-face {
+  font-family: 'Fraunces Fallback';
+  src: local('Georgia');
+  size-adjust: 108%;
+  ascent-override: 92%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Newsreader Fallback';
+  src: local('Georgia');
+  size-adjust: 96%;
+  ascent-override: 98%;
+  descent-override: 26%;
+  line-gap-override: 0%;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Paper → ink, tinted toward the ember anchor (hue 45–80). */
+  --color-paper: oklch(96.5% 0.013 78);
+  --color-paper-2: oklch(93.5% 0.018 74);
+  --color-paper-3: oklch(90% 0.022 70);
+  --color-card: oklch(98.5% 0.008 80);
+  --color-rule: oklch(83% 0.018 68);
+  /* Form-field edges: at least 3:1 against the paper. */
+  --color-rule-strong: oklch(58% 0.02 55);
+  --color-neutral: oklch(52% 0.016 55);
+  --color-muted: oklch(42% 0.016 50);
+  --color-ink: oklch(23% 0.016 45);
+  --color-ink-deep: oklch(19% 0.014 45);
+
+  /* The one accent: ember / terracotta. Links, focus, the primary action. */
+  --color-accent: oklch(50% 0.145 40);
+  --color-accent-hover: oklch(44% 0.14 38);
+  --color-accent-ink: oklch(97.5% 0.01 78);
+  --color-accent-wash: oklch(92% 0.04 55);
+  --color-focus: oklch(50% 0.17 40);
+
+  /* States. */
+  --color-danger: oklch(48% 0.17 25);
+  --color-ok: oklch(45% 0.09 150);
+  --color-ok-wash: oklch(93% 0.035 150);
+
+  /* Over photographs: a scrim colour, never pure black. */
+  --color-scrim: oklch(18% 0.015 45);
+  --color-on-photo: oklch(97% 0.01 80);
+  --overlay-photo: oklch(18% 0.015 45 / 0.72);
+
+  --font-display: 'Fraunces', 'Fraunces Fallback', Georgia, serif;
+  --font-body: 'Newsreader', 'Newsreader Fallback', Georgia, serif;
+
+  /* 1.25 major third from a 17px body. */
+  --text-xs: 0.8rem;
+  --text-sm: 0.9rem;
+  --text-base: 1.0625rem;
+  --text-md: 1.25rem;
+  --text-lg: 1.5625rem;
+  --text-xl: 1.953rem;
+  --text-2xl: 2.441rem;
+  --text-display: clamp(2.5rem, 4.5vw + 1rem, 4.75rem);
+
+  /* 4pt spacing scale. */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+
+  --page-gutter: clamp(1rem, 4vw, 3rem);
+  --page-max: 78rem;
+  --measure: 62ch;
+
+  --rule-hair: 1px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+}

@@ -15,7 +15,7 @@ draft: true
    screen when the site is built. Describe it in `coverAlt`, or leave that empty when the
    image is only decoration.
 4. Write the post in Markdown below it.
-5. Publish. The post, the blog list, its tag pages, the RSS feed and the sitemap update
+5. Publish. The post, the blog list, the RSS feed, the sitemap and the home page update
    together.
 
 Set `draft: true` to keep a post out of the live site while you work on it.

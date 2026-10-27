@@ -1,94 +1,77 @@
 ---
-/** Our story: words from `ABOUT` in `src/content/site.ts`. */
-import {Picture} from 'astro:assets';
-
-import {ABOUT, BOOK} from '../content/site';
+/** Our story and team: PRERENDERED. Words in `src/content/site.ts` (`ABOUT`). */
+import Photo from '../components/Photo.astro';
+import {ABOUT, PHOTOS} from '../content/site';
 import Base from '../layouts/Base.astro';
-import {PHOTOS} from '../lib/photos';
+import {staticContext} from '../server/page';
+
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+const chapterPhotos = [PHOTOS.fire, PHOTOS.herbs];
 ---
 
-<Base title={ABOUT.title} description="How Juniper Hair Studio began, how we work and what we use: a small, calm salon on Alberta Street in Portland.">
-  <section class="wrap page-head">
-    <h1>{ABOUT.title}</h1>
-    <p class="lead">{ABOUT.lede}</p>
-  </section>
+<Base site={site} viewer={viewer} isStatic title="Our story" description={ABOUT.lede}>
+  <main id="main" tabindex="-1">
+    <section class="fold fold-short" aria-labelledby="about-title">
+      <Photo photo={PHOTOS.hall} sizes="100vw" widths={[640, 1024, 1600, 2200]} eager />
+      <div class="fold-text">
+        <p class="fold-caption">41 Stokes Croft, since 2021</p>
+        <h1 id="about-title">{ABOUT.title}</h1>
+      </div>
+    </section>
 
-  <div class="wrap">
-    <div class="frame story-photo">
-      <Picture src={PHOTOS.team.src} alt={PHOTOS.team.alt} widths={[640, 1000, 1600]} sizes="(min-width: 1240px) 1240px, calc(100vw - 32px)" formats={['avif', 'webp']} loading="eager" fetchpriority="high" />
-    </div>
-  </div>
+    <div class="shell">
+      <p class="band-statement band-lede">{ABOUT.lede}</p>
 
-  <section class="section" aria-label="The story">
-    <div class="wrap cols">
       {
-        ABOUT.sections.map(section => (
-          <div class="ruled">
-            <h2 class="story-heading">{section.heading}</h2>
-            <p>{section.body}</p>
-          </div>
+        ABOUT.chapters.map((chapter, i) => (
+          <section class="chapter" aria-labelledby={`chapter-${i}`}>
+            <div class="prose">
+              <h2 id={`chapter-${i}`}>{chapter.heading}</h2>
+              {chapter.body.map(paragraph => (
+                <p>{paragraph}</p>
+              ))}
+            </div>
+            <figure class="chapter-photo">
+              <Photo photo={chapterPhotos[i % chapterPhotos.length]} sizes="(min-width: 52rem) 40vw, 100vw" ratio={0.75} widths={[480, 800, 1200]} />
+            </figure>
+          </section>
         ))
       }
-    </div>
-  </section>
 
-  <section class="section band" aria-labelledby="studio-title">
-    <div class="wrap studio">
-      <div>
-        <h2 id="studio-title">Four chairs, big windows</h2>
-        <p class="lead">We kept the studio small on purpose. It means quieter afternoons, unhurried appointments and a stylist who remembers how you like your fringe.</p>
-        <div class="actions">
-          <a class="btn btn-primary btn-lg" href="/stylists/">Meet the stylists</a>
-          <a class="btn btn-secondary btn-lg" href="/visit/">Visit us</a>
+      <section class="band-tight" aria-labelledby="team-title">
+        <div class="section-head">
+          <h2 id="team-title">Who you’ll meet</h2>
+        </div>
+        <ul class="team">
+          {
+            ABOUT.team.map((person, i) => (
+              <li>
+                <figure>
+                  <Photo photo={person.photo} sizes="(min-width: 52rem) 33vw, 100vw" ratio={i === 0 ? 0.8 : 1.25} widths={[400, 720, 1000]} />
+                </figure>
+                <h3>{person.name}</h3>
+                <p class="role">{person.role}</p>
+                <p>{person.bio}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+    </div>
+
+    <section class="closing" aria-labelledby="about-book-title">
+      <div class="shell closing-inner">
+        <div>
+          <h2 id="about-book-title">Pull up a chair</h2>
+          <p>The best way to know us is to eat with us.</p>
+        </div>
+        <div class="closing-actions">
+          <a class="btn" href="/book/" data-astro-prefetch>Book a table</a>
+          <a class="link-arrow" href="/jobs/">Work with us</a>
         </div>
       </div>
-      <div class="frame studio-photo">
-        <Picture src={PHOTOS.interiorChairs.src} alt={PHOTOS.interiorChairs.alt} widths={[480, 800, 1200]} sizes="(min-width: 1000px) 560px, calc(100vw - 32px)" formats={['avif', 'webp']} />
-      </div>
-    </div>
-  </section>
-
-  <section class="section dark cta-band" aria-labelledby="cta-title">
-    <div class="wrap">
-      <div>
-        <h2 id="cta-title">Come and sit with us</h2>
-        <p class="lead">Your first visit starts with a proper chat and a cup of tea.</p>
-      </div>
-      <div class="actions">
-        <a class="btn btn-on-dark btn-lg" href={BOOK.href}>{BOOK.label}</a>
-        <a class="btn btn-outline-dark btn-lg" href="/services/">See services & prices</a>
-      </div>
-    </div>
-  </section>
+    </section>
+  </main>
 </Base>
-
-<style>
-  .story-photo {
-    aspect-ratio: 16 / 9;
-  }
-
-  .story-heading {
-    font-size: 22px;
-    letter-spacing: -0.025em;
-  }
-
-  .studio {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 48px 64px;
-  }
-
-  .studio > div:first-child {
-    flex: 1 1 440px;
-  }
-
-  .studio .lead {
-    margin-top: 20px;
-  }
-
-  .studio-photo {
-    flex: 1 1 400px;
-    aspect-ratio: 3 / 2;
-  }
-</style>

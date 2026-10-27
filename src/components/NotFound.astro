@@ -1,0 +1,24 @@
+---
+/**
+ * The 404 body — rendered by `pages/404.astro` for any address with no
+ * page, and by the post page for an unknown slug. Both set a 404 status.
+ */
+import {RESTAURANT} from '../content/site';
+import type {Site} from '../lib/types';
+
+interface Props {
+  site: Site | null;
+}
+
+---
+
+<main id="main" tabindex="-1" class="shell band">
+  <p class="kicker">Not on the menu</p>
+  <h1>We can’t find that page</h1>
+  <p class="lede-lg">It may have moved, or the link may be old. Everything at {RESTAURANT.name} starts from one of these:</p>
+  <p class="fold-actions">
+    <a class="btn" href="/book/" data-astro-prefetch>Book a table</a>
+    <a class="link-arrow" href="/menu/" data-astro-prefetch>The menu</a>
+    <a class="link-arrow" href="/" data-astro-prefetch>Home</a>
+  </p>
+</main>

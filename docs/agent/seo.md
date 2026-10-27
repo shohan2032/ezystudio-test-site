@@ -1,68 +1,77 @@
 ---
-title: SEO: pages search engines and social apps understand
-read-when: before adding a page or a post, changing a title, a description, a URL or a social card
+title: SEO: public pages search engines and social apps understand
+read-when: before adding or renaming a public page, changing a title or description, a URL, a social card, the sitemap, robots.txt or the RSS feed
 ---
-A static site is the best case for search: every page is real HTML at a real URL. Keep it so.
+The public side of this app (home, about, blog, jobs) is real HTML at real URLs: prerendered or
+rendered on the server, never painted by JavaScript. Keep it so. The sign-in pages, the
+portal and the Site API stay out of search.
 
-## Every page
+## Every public page
 - A unique `title` and `description` (~150 characters, says what the page is for), passed to
-  `<Base title description>`. The tab shows "<title> · <site name>"; the home page omits `title`.
-- The site's address (`src/lib/site-url.ts`): `SITE.url` in `src/content/site.ts` when the
-  owner set it (their custom domain), else the address the platform passes to every Publish build
-  (`SITE_URL`, the free `{{SITE_ORIGIN_PATTERN}}` address). From it every page gets a
-  canonical URL and `og:url`, and the sitemap, robots.txt and RSS get absolute links. Set
-  `SITE.url` once the owner has a custom domain (`https://www.example.com`, no trailing slash);
-  never a guess. In `npm run dev` / the Preview the address is unknown and those tags are left
-  out: that is expected.
-- `<Base>` writes `og:site_name`, `og:type`, `og:title`, `og:description`, `og:url`,
-  `og:image` (+ `og:image:alt`), `twitter:card` / `twitter:title` / `twitter:description` /
-  `twitter:image`, and on posts (`type="article"`) the published and modified times.
-- A social card image when the page is shared: `image` on `<Base>` (a `/path` on this site or
-  an https URL; made absolute for you), 1200×630, under ~300 KB. For a `src/assets` image pass
-  `(await getImage({src: img, width: 1200, format: 'jpg'})).src`, as the post page does.
-- Real text in the HTML for everything that should rank. Never render words with JavaScript.
-- Every page is its own prerendered HTML file, reached by a plain `<a href>`. Instant clicks come
-  from prefetch + Astro's ClientRouter (`performance.md`), which swaps in those same pages;
-  never render a page's words with your own JavaScript.
+  `<Base title description>`. The tab shows "<title> · <site name>"; the home page omits
+  `title`. Without a `description` the page falls back to `SITE.description`
+  (`src/content/site.ts`): write a real one for every page that should rank.
+- `<Base>` writes the canonical URL, `og:site_name`, `og:type`, `og:title`, `og:description`,
+  `og:url`, `og:image` (+ `og:image:alt`), the `twitter:*` card tags and, on posts
+  (`type="article"`), `article:published_time` / `article:modified_time`. Pass `image` (a
+  `/path` or an https URL, 1200×630, made absolute for you) where a page has a picture.
+- The address comes from `src/lib/seo.ts`: `SITE.url` in `src/content/site.ts` when the owner
+  set it (their custom domain, `https://www.example.com`, no trailing slash), else the address
+  the platform gives the site (`{{SITE_URL_ENV}}`, `{{SITE_ORIGIN_PATTERN}}`). In `npm run dev` and
+  the editor Preview it is unknown and the absolute tags are left out: that is expected.
+- `<html lang>` is `SITE.lang`. One `<h1>`, headings in order, `alt` on content images.
+- Public pages are real pages at real URLs, linked with plain `<a href>`; instant clicks come
+  from prefetch + Astro's ClientRouter (`performance.md`), which swaps in those same server-
+  rendered pages; never from moving a page into the portal SPA.
 
 ## Structured data (JSON-LD)
-- `src/lib/json-ld.ts` builds it; `<Base>` writes it as `<script type="application/ld+json">`
-  (a data block: never executed, so the CSP allows it). The home page gets `WebSite` +
-  `Organization` (the site name in search results); a post passes `jsonLd={postJsonLd(…)}`
-  (`BlogPosting`: headline, dates, author, cover).
-- A new kind of page with a schema.org type (an event, a product, an FAQ): add a builder in
-  `json-ld.ts` and pass it to `<Base jsonLd>`. Only facts the page itself shows, from this
-  repo's content; absolute URLs through `absoluteUrl()`. Never on a `noindex` page.
-- Always through `jsonLdText()` (escapes `<`), never a hand-written `<script>` or `set:html` of
-  anything else. Check it with Google's Rich Results Test on the live page.
+- Built in `src/lib/seo.ts`, written by `<Base>` as `<script type="application/ld+json">` (a
+  data block: never executed, so the CSP allows it). The home page gets `WebSite` +
+  `Organization` (name, logo from the platform's brand); a post passes
+  `jsonLd={postJsonLd(…)}` (`BlogPosting`); an open job `jsonLd={jobJsonLd(job)}`
+  (`JobPosting`, for job search).
+- A new public page type with a schema.org type (an event, a product, an FAQ): add a builder
+  in `seo.ts` and pass it to `<Base jsonLd>`. Only facts the page itself shows; absolute URLs
+  through `absoluteUrl()`. `<Base>` drops it on `noindex` and `secretInUrl` pages.
+- Always through `jsonLdText()` (escapes `<`, so data can never close the script), never a
+  hand-written `<script>` or `set:html` of anything else. Check with Google's Rich Results
+  Test on the live page.
 
-## Posts
-- The post's `description` front matter is its meta description and the blog list's summary.
-- `cover` is its social image (1200×630, a JPEG is made for you). `publishedAt` (and `updatedAt`
-  when you change a post) keep dates honest; they feed `article:*` tags, the sitemap's
-  `lastmod` and the RSS `pubDate`.
-- `tags` make `/blog/tags/<tag>/` pages (listed in the sitemap). Few, reused tags beat many
-  one-off ones.
-- The file name is the URL. Never rename a published post (old links and rankings break); if one
-  must move, keep the old file as a short post linking to the new one.
+## URLs
+- Public page URLs end with `/` (`/about/`, `/blog/<slug>/`, `/jobs/<slug>/`): prerendered pages
+  are served there (`/about` costs a redirect), and the canonical URL and the sitemap use that
+  form. Link with the slash; lowercase, dashes.
+- The canonical URL is the path WITHOUT the query string: `/jobs/?type=contract` and
+  `/jobs/?before=40` point search engines at `/jobs/`.
+- A blog post's file name is its URL; a job's `slug` is its URL. Never rename a published one
+  (old links and rankings break).
 
-## URLs and links
-- Clean directory URLs with trailing slashes (`/about/`, `/blog/my-post/`), lowercase, dashes.
-- Internal links use those exact paths. Descriptive link text (`accessibility.md`).
-- `alt` on content images; headings in order, one `<h1>` per page.
+## Private pages
+- `noindex` on everything that is not public content: the `/account/*` pages and the 404 have
+  it (`<Base noindex>`); the portal's layout (`App.astro`) has it. Add it to any thank-you,
+  test or per-user page.
+- A page whose URL carries a secret (a reset token) also passes `secretInUrl` (no Referer, no
+  canonical).
+- Never put visitor data in a prerendered page (`AGENTS.md`).
 
-## Sitemap, robots.txt, RSS (built with the site)
-- `/sitemap.xml` (`src/pages/sitemap.xml.ts`) lists every page in `src/pages/` automatically,
-  every post (with `lastmod`) and every tag page. A new dynamic route (`[param].astro`) is NOT
-  found automatically: add its URLs there, as posts and tags are.
-- `/robots.txt` (`src/pages/robots.txt.ts`) allows everything and names the sitemap.
-- `/rss.xml` (`src/pages/rss.xml.ts`): the 20 newest posts; every page links it in `<head>`.
-- Keep all three; don't add static `public/robots.txt` or `public/sitemap.xml` copies (they
-  would clash). `/.well-known/` files only when the owner asks (domain verification).
+## Sitemap, robots.txt, RSS (this site's own; keep all three)
+- `/sitemap.xml` (`src/pages/sitemap.xml.ts`, on request, cached 1 h): every page in
+  `src/pages/` found automatically (minus `/account`, `/portal`, `/site-api`, the 404 and
+  `EXCLUDE`), every blog post (`lastmod` from its dates) and the newest open jobs (one bounded,
+  indexed query: `GET /site-api/jobs/sitemap`). A NEW public dynamic route (`[slug].astro`
+  with its data in the Site Database) is not found automatically: add a small bounded
+  `…/sitemap` route like the jobs one and list its URLs there. A new `noindex` page goes in
+  `EXCLUDE`.
+- `/robots.txt` (`src/pages/robots.txt.ts`, prerendered): allows the site, disallows only
+  `/site-api/` (JSON, no page to carry a tag), names the sitemap. `/account/*` and `/portal` are
+  NOT disallowed on purpose: their `noindex` keeps them out of search, and a crawler only sees
+  it when it may fetch the page (a `Disallow` lets the bare URL be listed from links). Keep a
+  private page out of search with `noindex`, never with `Disallow`. Never `Disallow: /` or
+  `noindex` on real pages unless the owner asks for exactly that.
+- `/rss.xml` (`src/pages/rss.xml.ts`, prerendered): the 20 newest posts; every page links it.
+- Don't add `public/robots.txt` or `public/sitemap.xml` copies (they would clash with the
+  routes). `/.well-known/` files only when the owner asks (domain verification).
 
-## Utility pages
-- `noindex` on utility pages: the 404 has it (`<Base noindex>`); add it to any thank-you or test
-  page, AND put its path in `EXCLUDE` in `sitemap.xml.ts`. (Lighthouse's SEO score on a
-  `noindex` page is low by design; check SEO on real pages.)
-- Never block the site from search engines (`noindex` on real pages, `Disallow: /`) unless the
-  owner asks for exactly that.
+## Check before "done"
+`npm run build`, then in the Preview: view the page source (one `<title>`, a description, one
+`<h1>`), `/sitemap.xml` lists the new page, and a Lighthouse SEO run on a public page is ≥ 95.

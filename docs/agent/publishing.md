@@ -6,42 +6,59 @@ read-when: before git push, when the owner asks how changes go live, when the Pr
 - You edit a working copy. Nothing visitors see changes until the OWNER publishes from the
   the editor (typed "publish"). You cannot publish or deploy: there are no platform
   credentials here, and you never ask for any.
-- Publish → Deployment: Prepare (detect the framework: Astro, no adapter = a static site) →
-  Build (`npm ci`, `npm run build`) → Deploy (`dist/` served as plain files, `404.html` for
-  every miss) → Live. Redeploy of an earlier deployment is the rollback.
+- Publish → Deployment: Prepare (detect the framework) → Build (`npm ci`, `npm run build`) →
+  Migrate (pending `prisma/migrations` on the live Site Database; a failure keeps the old version
+  live; destructive SQL waits for approval) → Deploy → Live. Redeploy of an earlier deployment is
+  the rollback (database migrations stay applied: they must be backward-compatible, `database.md`).
 - The site answers on its free address (`{{SITE_ORIGIN_PATTERN}}`) and on any custom domain the
   owner connects in the site's Domains tab. `{{API_PREFIX}}/*` on every one of those hosts is the
-  platform's, never this site's.
-- Before telling the owner it is ready: `npm run build` passes, the Preview shows every changed
-  page, and `security.md`'s checklist holds.
+  platform's, never this app's.
+- Before telling the owner it is ready: `npm run build` passes, `npm test` passes (with
+  `TEST_DATABASE_URL` when a test database is available, `database.md`), the Preview
+  shows every changed page, the forms follow AGENTS.md, and `security.md`'s checklist holds.
 
 ## What the platform expects (Prepare refuses otherwise)
-- `astro` in `package.json` with NO adapter and `output: 'static'`. `@astrojs/node|vercel|
-  netlify` are refused; `@astrojs/cloudflare` turns the site into a server app, which is the
-  Astro app template's job, not this one's. Never another framework beside Astro.
+- `astro` + `@astrojs/cloudflare` (14.x) in `package.json`; never `@astrojs/node|vercel|netlify`,
+  never Next.js or another framework beside Astro.
 - npm with ONE lockfile (`package-lock.json`, committed); `allowScripts` lists approved install
-  scripts. No `wrangler.*` files (the platform writes the deploy config), no `.github/workflows`.
-- No `base` path, no per-request endpoints (build-time ones like `rss.xml.ts`,
-  `sitemap.xml.ts`, `robots.txt.ts` are files and fine), no secrets in files.
-- The Build gets ONE variable, `SITE_URL` (the site's address, read only through
-  `src/lib/site-url.ts` for canonical URLs, the sitemap and RSS). Nothing else from the
-  environment reaches a static build, and nothing secret ever does.
-- The project sits at the repository root. `node_modules`, `dist`, `.astro`, `.env` are never
-  committed (`.gitignore`).
+  scripts. No `wrangler.*` files (the platform writes the deploy config), no KV/R2/D1/queues/
+  Durable Objects/service bindings, no `.github/workflows`.
+- No `base` path, no `Astro.session`, no on-demand image transforms (`imageService: 'compile'`
+  optimises prerendered images at build and passes the rest through), no secrets in files.
+  `/robots.txt`, `/sitemap.xml` and `/rss.xml` are this site's own (`seo.md`): keep them.
+- The Build prerenders with `{{SITE_URL_ENV}}` set to the site's address (that is how
+  canonical URLs and the sitemap know it); nothing secret reaches the Build.
+- The project sits at the repository root. `node_modules`, `dist`, `.env`, `.dev.vars`,
+  `src/generated` are never committed (`.gitignore`).
 
 ## Preview (the editor)
 - The editor runs `npm run dev` for the Preview pane: keep it working and serving at `/`. Never
   start a second dev server; never `npm run preview`.
-- The Preview is the dev server, not the built files: drafts (`draft: true`) show there and
-  never in a Publish. Only `npm run build` proves the build.
-- The Preview is framed by the editor; the live site sends `X-Frame-Options: DENY`. Never rely on
-  being framed.
+- In the Preview, `SITE_PREVIEW=1`, `DATABASE_URL` is the Preview Database, `JWT_SECRET` and the
+  Site Key are the editor's own. Sign-in works for real against the Preview Database, and the
+  first account to confirm its email there becomes owner (no owner list in the Preview).
+- The editor's gateway drops every `Cookie` and `Set-Cookie` header, so in the Preview the auth
+  cookies travel in headers instead (`x-ezs-preview-cookie` / `x-ezs-preview-set-cookie`, kept
+  by `src/platform/browser.ts` in the tab's `sessionStorage`; `src/platform/auth/preview-cookies.ts`).
+  Consequences: the server never sees the session on a full page load there, so every page
+  fills the visitor in in the browser and `/portal` starts the app and checks `/site-api/me`
+  itself. Browser calls must go through `siteFetch()` / the portal's `api` (a plain `fetch` to
+  `/site-api` is signed out in the Preview). The live site never sends or reads those headers.
+- Account emails are relayed with links on the site's LIVE address. A confirmation or reset
+  link for a Preview account therefore opens the live site, which does not know that token:
+  open the same path on the Preview instead (`/account/verify/?token=…` in the Preview pane).
+- The Preview is framed by the editor, so `X-Frame-Options` is not sent there; `sameOrigin` is
+  skipped (the editor's gateway checks origins). Never rely on any of these differences in your
+  code, and never build your own cookie or header workaround: use `siteFetch()`.
+- The network is open in the Preview but not live: deployed server code reaches only the
+  platform host and the Site Database. Only a Publish proves the Build.
 
 ## Template upgrades
-- `template.json` records the template and its version. `npm run platform -- check` says if a
-  newer one exists; `npm run platform -- upgrade` (clean git tree, owner's OK) replaces the
-  MANAGED paths (`docs/agent/**`, `scripts/platform.mjs`, `CHANGELOG.md`) and 3-way merges
-  everything else. Then read `CHANGELOG.md`, resolve conflicts, `npm install`, `npm run build`.
+- `template.json` records the template version. `npm run platform -- check` says if a newer one
+  exists; `npm run platform -- upgrade` (clean git tree, owner's OK) replaces the MANAGED paths
+  (`src/platform/**`, `docs/agent/**`, `scripts/platform.mjs`, `CHANGELOG.md`) and 3-way merges
+  everything else. Then read `CHANGELOG.md`, resolve conflicts, `npm install`, `npm run build`,
+  `npm test`.
 - `npm run platform -- docs` (or `--site <this site's address>`) saves the platform's live
   agent docs to `.platform/docs/`; when they differ from `docs/agent/`, the live ones win.
 

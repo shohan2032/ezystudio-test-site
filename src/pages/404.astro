@@ -1,17 +1,15 @@
 ---
-/** Built as `404.html` at the root: the platform answers every missing path with it. */
-import {BOOK} from '../content/site';
+/**
+ * Any address on the site that matches no page. Rendered on request (so it
+ * shows the brand) with a 404 status.
+ */
+import NotFound from '../components/NotFound.astro';
 import Base from '../layouts/Base.astro';
+import {pageContext} from '../server/page';
+
+const {site, viewer} = await pageContext(Astro.request, Astro.response);
 ---
 
-<Base title="Page not found" noindex>
-  <section class="wrap page-head">
-    <p class="eyebrow">404</p>
-    <h1>This page has wandered off</h1>
-    <p class="lead">The link may be old, or the address mistyped. These might help:</p>
-    <div class="actions">
-      <a class="btn btn-primary btn-lg" href={BOOK.href}>{BOOK.label}</a>
-      <a class="btn btn-secondary btn-lg" href="/">Go to the home page</a>
-    </div>
-  </section>
+<Base site={site} viewer={viewer} title="Page not found" noindex>
+  <NotFound site={site} />
 </Base>

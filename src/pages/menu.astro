@@ -1,0 +1,136 @@
+---
+/**
+ * The menu: PRERENDERED from `src/content/menu.ts` (edit dishes and prices
+ * there). Today's specials are filled in by the browser from
+ * `/site-api/specials`, like the home page.
+ */
+import Photo from '../components/Photo.astro';
+import {DIET_LABELS, DRINKS, MENU, MENU_NOTE} from '../content/menu';
+import {PHOTOS} from '../content/site';
+import Base from '../layouts/Base.astro';
+import {formatPrice} from '../lib/booking';
+import {staticContext} from '../server/page';
+
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+---
+
+<Base
+  site={site}
+  viewer={viewer}
+  isStatic
+  title="Menu"
+  description="The autumn menu at Fennel & Fig: snacks, small plates, dishes from the wood fire, Sunday lunch and puddings, with prices.">
+  <main id="main" tabindex="-1">
+    <header class="page-head shell">
+      <h1>Menu</h1>
+      <p class="lede-lg">{MENU_NOTE}</p>
+      <nav aria-label="Menu sections">
+        <ul class="menu-index">
+          <li><a href="#today">Today’s specials</a></li>
+          {MENU.map(section => <li><a href={`#${section.id}`}>{section.title}</a></li>)}
+          <li><a href="#drinks">Drinks</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <div class="shell">
+      <div class="menu-columns">
+        <section class="menu-section" id="today" aria-labelledby="today-title" data-specials>
+          <h2 id="today-title">Today’s specials</h2>
+          <p class="menu-section-note">On the board until they run out.</p>
+          <p class="board-empty" data-state="loading">Reading the board…</p>
+          <ul class="dish-list" data-list hidden></ul>
+          <p class="board-empty" data-state="empty" hidden>Nothing on the board yet today — ask at the table.</p>
+          <p class="board-empty" data-state="error" hidden>We could not load today’s board just now. Ask at the table.</p>
+        </section>
+
+        {
+          MENU.map(section => (
+            <section class="menu-section" id={section.id} aria-labelledby={`${section.id}-title`}>
+              <h2 id={`${section.id}-title`}>{section.title}</h2>
+              {section.note && <p class="menu-section-note">{section.note}</p>}
+              <ul class="dish-list">
+                {section.dishes.map(dish => (
+                  <li class="dish">
+                    <p class="dish-name">
+                      {dish.name}
+                      {dish.tags && dish.tags.length > 0 && (
+                        <span class="dish-tags">
+                          {dish.tags.map(tag => (
+                            <abbr title={DIET_LABELS[tag]}>{tag}</abbr>
+                          ))}
+                        </span>
+                      )}
+                    </p>
+                    <span class="dish-price">{formatPrice(dish.price)}</span>
+                    <p class="dish-desc">{dish.description}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        }
+      </div>
+
+      <ul class="menu-legend" aria-label="Dietary key">
+        {
+          Object.entries(DIET_LABELS).map(([tag, label]) => (
+            <li>
+              <abbr title={label}>{tag}</abbr>
+              {label}
+            </li>
+          ))
+        }
+        <li>Allergies? Tell us when you book or when you sit down — we know every ingredient in every dish.</li>
+      </ul>
+    </div>
+
+    <section class="fold fold-short band-gap" aria-labelledby="fire-title">
+      <Photo photo={PHOTOS.plates} sizes="100vw" widths={[640, 1024, 1600, 2200]} />
+      <div class="fold-text">
+        <p class="fold-caption">Oak and apple wood</p>
+        <h2 id="fire-title">Everything passes through the fire</h2>
+      </div>
+    </section>
+
+    <section class="band shell" id="drinks" aria-labelledby="drinks-title">
+      <div class="section-head">
+        <h2 id="drinks-title">Drinks</h2>
+      </div>
+      <dl class="drinks">
+        {
+          DRINKS.map(drink => (
+            <div>
+              <dt>{drink.name}</dt>
+              <dd>{drink.body}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
+
+    <section class="closing" aria-labelledby="menu-book-title">
+      <div class="shell closing-inner">
+        <div>
+          <h2 id="menu-book-title">Hungry yet?</h2>
+          <p>Tables for up to eight, lunch and dinner. The bar keeps a few seats for walk-ins.</p>
+        </div>
+        <div class="closing-actions">
+          <a class="btn" href="/book/" data-astro-prefetch>Book a table</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<script>
+  import {fillSpecials} from '../lib/specials-board';
+
+  // Runs on every `astro:page-load` (ClientRouter) while this is the page.
+  document.addEventListener('astro:page-load', () => {
+    const section = document.querySelector<HTMLElement>('#today[data-specials]');
+    if (section) void fillSpecials(section);
+  });
+</script>

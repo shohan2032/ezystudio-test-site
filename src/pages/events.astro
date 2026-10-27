@@ -1,0 +1,180 @@
+---
+/**
+ * Events and private dining: PRERENDERED. Words in `src/content/site.ts`
+ * (`EVENTS`). The enquiry form posts to `/site-api/enquiries`; staff read the
+ * enquiries in `/portal/enquiries`.
+ */
+import Photo from '../components/Photo.astro';
+import {EVENTS, PHOTOS, RESTAURANT} from '../content/site';
+import Base from '../layouts/Base.astro';
+import {ENQUIRY_KINDS, LIMITS, MAX_GUESTS} from '../lib/booking';
+import {staticContext} from '../server/page';
+
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+---
+
+<Base site={site} viewer={viewer} isStatic title="Events & private dining" description={EVENTS.lede}>
+  <main id="main" tabindex="-1">
+    <section class="fold fold-short" aria-labelledby="events-title">
+      <Photo photo={PHOTOS.longTable} sizes="100vw" widths={[640, 1024, 1600, 2200]} eager />
+      <div class="fold-text">
+        <p class="fold-caption">The long table, a Saturday in March</p>
+        <h1 id="events-title">{EVENTS.title}</h1>
+        <div class="fold-actions">
+          <a class="link-arrow" href="#enquire">Send an enquiry</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="shell">
+      <p class="band-statement band-lede">{EVENTS.lede}</p>
+
+      <section class="band-tight" aria-labelledby="spaces-title">
+        <div class="section-head">
+          <h2 id="spaces-title">Where we can put you</h2>
+        </div>
+        <div class="spaces">
+          {
+            EVENTS.spaces.map(space => (
+              <article class="space">
+                <figure>
+                  <Photo photo={space.photo} sizes="(min-width: 52rem) 55vw, 100vw" ratio={0.667} widths={[480, 800, 1200]} />
+                </figure>
+                <div class="prose">
+                  <h3>{space.name}</h3>
+                  <p class="seats">{space.seats}</p>
+                  <p>{space.body}</p>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="band-tight" aria-labelledby="upcoming-title">
+        <div class="section-head">
+          <h2 id="upcoming-title">Coming up</h2>
+          <a class="link-arrow" href={RESTAURANT.phoneHref}>Tickets by phone</a>
+        </div>
+        <ul class="agenda">
+          {
+            EVENTS.upcoming.map(event => (
+              <li>
+                <time>{event.date}</time>
+                <div>
+                  <h3>{event.title}</h3>
+                  <p>{event.body}</p>
+                </div>
+                <p class="price">{event.price}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+
+      <section class="band" id="enquire" aria-labelledby="enquire-title">
+        <div class="form-layout">
+          <form id="enquiry-form" class="site-form" novalidate>
+            <div>
+              <h2 id="enquire-title">Plan something with us</h2>
+              <p class="muted">Sam reads every enquiry and replies within two working days with dates, menus and a price.</p>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="enq-name">Your name</label>
+                <input id="enq-name" name="name" autocomplete="name" maxlength={LIMITS.name} />
+              </div>
+              <div class="field">
+                <label for="enq-email">Email</label>
+                <input id="enq-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@example.com" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="enq-phone">Phone <span class="optional">(optional)</span></label>
+                <input id="enq-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="07700 900123" />
+              </div>
+              <div class="field">
+                <label for="enq-kind">What is it?</label>
+                <select id="enq-kind" name="kind">
+                  <option value="">Choose one</option>
+                  {ENQUIRY_KINDS.map(kind => <option value={kind.value}>{kind.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="enq-guests">Roughly how many guests?</label>
+                <input id="enq-guests" name="guests" inputmode="numeric" placeholder="14" />
+                <p class="field-hint" id="enq-guests-hint">Up to {MAX_GUESTS} standing, 60 seated.</p>
+              </div>
+              <div class="field">
+                <label for="enq-date">Date you have in mind <span class="optional">(optional)</span></label>
+                <input id="enq-date" name="eventDate" type="date" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="enq-message">Tell us about it</label>
+              <textarea id="enq-message" name="message" rows="5" placeholder="A 40th birthday, a long lunch, vegetarian-friendly, a cake at the end…"></textarea>
+            </div>
+            <p class="notice" data-form-status hidden></p>
+            <div>
+              <button class="btn" type="submit">Send enquiry</button>
+            </div>
+          </form>
+          <aside class="form-aside" aria-label="Good to know">
+            <div>
+              <h2>Good to know</h2>
+              <ul>
+                <li>Set sharing menus from £48 a head; we adapt every one for allergies and diets.</li>
+                <li>A deposit holds the date once we have agreed the details.</li>
+                <li>Monday and Tuesday buyouts are easiest to arrange.</li>
+              </ul>
+            </div>
+            <div>
+              <h2>Rather talk?</h2>
+              <p><a href={RESTAURANT.phoneHref}>{RESTAURANT.phone}</a>, Wednesday to Sunday from noon.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </main>
+</Base>
+
+<script>
+  import {checkEnquiry} from '../lib/booking';
+  import {bindForm, postJson, rulesFromCheck} from '../lib/form';
+  import {siteFetch} from '../platform/browser';
+
+  document.addEventListener('astro:page-load', () => {
+    const form = document.querySelector<HTMLFormElement>('#enquiry-form');
+    if (!form) return;
+    bindForm(form, {
+      // The server's own check, field by field (src/lib/booking.ts).
+      rules: rulesFromCheck(form, ['name', 'email', 'phone', 'kind', 'guests', 'eventDate', 'message'], values =>
+        checkEnquiry(values, new Date())
+      ),
+      pendingLabel: 'Sending…',
+      async submit(values) {
+        const {result} = await postJson(siteFetch, '/site-api/enquiries', values);
+        if (result.ok) {
+          const box = document.createElement('div');
+          box.className = 'confirmation';
+          box.setAttribute('role', 'status');
+          box.tabIndex = -1;
+          const title = document.createElement('h2');
+          title.textContent = 'Thank you — we have your enquiry.';
+          const body = document.createElement('p');
+          body.textContent = result.message ?? 'We will reply within two working days.';
+          box.append(title, body);
+          form.replaceWith(box);
+          box.focus();
+        }
+        return result;
+      },
+    });
+  });
+</script>
